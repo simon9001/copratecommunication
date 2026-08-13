@@ -1,0 +1,26 @@
+# Application Server Configuration
+PORT=3000
+NODE_ENV=development
+LOG_LEVEL=info
+
+# SQL Server Database Configuration
+DB_USER=sa
+DB_PASSWORD=Kenhadev@2026
+DB_SERVER=localhost
+DB_DATABASE=KeNHA_VR_Projects
+DB_PORT=1433
+DB_ENCRYPT=false
+DB_TRUST_SERVER_CERTIFICATE=true
+
+# Authentication Secrets
+JWT_SECRET=super-secret-jwt-key-kenha-vr-2026
+JWT_EXPIRES_IN=24h
+
+# Cloudinary Storage Configuration
+CLOUDINARY_CLOUD_NAME=dfhzcvbof
+CLOUDINARY_API_KEY=934239347749811
+CLOUDINARY_API_SECRET=JzXV1wbhyYDl2Idn_sFi6Zy3uPU
+CLOUDINARY_UPLOAD_PRESET=kenha_media_preset
+
+# Alert & Notification Webhook (Optional)
+ALERT_WEBHOOK_URL=

@@ -1,5 +1,6 @@
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import { env } from './config/env.js'
 import { requestIdMiddleware } from './middleware/requestId.middleware.js'
 import { loggerMiddleware } from './middleware/logger.middleware.js'
@@ -10,9 +11,21 @@ import { closeDbPool, checkDbHealth } from './db/connection.js'
 import { CloudinaryService } from './services/cloudinary.service.js'
 import { HealthController } from './modules/health/health.controller.js'
 import { logger } from './services/logger.service.js'
+import { seedDemoProjects } from './db/seed.js'
 import type { AppEnv } from './types/hono.js'
 
 const app = new Hono<AppEnv>()
+
+// Enable CORS for frontend integration
+app.use(
+  '*',
+  cors({
+    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+    credentials: true,
+  })
+)
 
 // Global Middlewares
 app.use('*', requestIdMiddleware)
@@ -60,6 +73,8 @@ serve(
 
     if (dbStatus.status === 'healthy') {
       logger.info(`✅ [Database] SQL Server connected successfully (${dbStatus.latencyMs}ms)`)
+      // Seed sample projects if database is empty
+      await seedDemoProjects()
     } else {
       logger.warn(`⚠️ [Database Alert] SQL Server health probe degraded: ${dbStatus.error}`)
     }
