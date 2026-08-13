@@ -1,0 +1,18 @@
+import { Hono } from 'hono'
+import { CategoryController } from './category.controller.js'
+import { authMiddleware } from '../../middleware/auth.middleware.js'
+import { requirePermission } from '../../middleware/permission.middleware.js'
+import { z } from 'zod'
+import { validateBody } from '../../middleware/validate.middleware.js'
+import type { AppEnv } from '../../types/hono.js'
+
+export const categoryRouter = new Hono<AppEnv>()
+
+const createCategorySchema = z.object({
+  categoryName: z.string().min(2).max(150),
+  description: z.string().max(500).optional(),
+  iconName: z.string().max(100).optional(),
+})
+
+categoryRouter.get('/', CategoryController.listCategories)
+categoryRouter.post('/', authMiddleware, requirePermission('ROLE_MANAGE'), validateBody(createCategorySchema), CategoryController.createCategory)

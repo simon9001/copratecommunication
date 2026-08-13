@@ -1,0 +1,89 @@
+import { AuthService as JWTAuthService } from '../../services/auth.service.js'
+import { AuthRepository } from './auth.repository.js'
+import { UnauthorizedError } from '../../errors/AppError.js'
+import type { RegisterUserDto, LoginUserDto } from './auth.schema.js'
+
+export class AuthService {
+  public static async register(dto: RegisterUserDto) {
+    const passwordHash = await JWTAuthService.hashPassword(dto.password)
+    const user = await AuthRepository.createUser(dto, passwordHash)
+
+    const roles = await AuthRepository.getUserRoles(user.UserId)
+    const permissions = await AuthRepository.getUserPermissions(user.UserId)
+
+    const token = JWTAuthService.generateToken({
+      userId: user.UserId,
+      email: user.Email,
+      fullName: user.FullName,
+      roles,
+      permissions,
+    })
+
+    return {
+      user: {
+        userId: user.UserId,
+        fullName: user.FullName,
+        email: user.Email,
+        roles,
+        permissions,
+      },
+      token,
+    }
+  }
+
+  public static async login(dto: LoginUserDto) {
+    const user = await AuthRepository.findByEmail(dto.email)
+
+    if (!user || !user.IsActive) {
+      throw new UnauthorizedError('Invalid email credentials or account is inactive')
+    }
+
+    const isPasswordValid = await JWTAuthService.comparePassword(dto.password, user.PasswordHash)
+    if (!isPasswordValid) {
+      throw new UnauthorizedError('Invalid password credentials')
+    }
+
+    await AuthRepository.updateLastLogin(user.UserId)
+    const roles = await AuthRepository.getUserRoles(user.UserId)
+    const permissions = await AuthRepository.getUserPermissions(user.UserId)
+
+    const token = JWTAuthService.generateToken({
+      userId: user.UserId,
+      email: user.Email,
+      fullName: user.FullName,
+      roles,
+      permissions,
+    })
+
+    return {
+      user: {
+        userId: user.UserId,
+        fullName: user.FullName,
+        email: user.Email,
+        roles,
+        permissions,
+      },
+      token,
+    }
+  }
+
+  public static async getProfile(userId: number) {
+    const user = await AuthRepository.findById(userId)
+    if (!user) {
+      throw new UnauthorizedError('Authenticated user record not found')
+    }
+
+    const roles = await AuthRepository.getUserRoles(user.UserId)
+    const permissions = await AuthRepository.getUserPermissions(user.UserId)
+
+    return {
+      userId: user.UserId,
+      fullName: user.FullName,
+      email: user.Email,
+      isActive: user.IsActive,
+      lastLoginAt: user.LastLoginAt,
+      roles,
+      permissions,
+    }
+  }
+}

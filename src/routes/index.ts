@@ -1,0 +1,17 @@
+import { Hono } from 'hono'
+import { healthRouter } from '../modules/health/health.router.js'
+import { authRouter } from '../modules/auth/auth.router.js'
+import { projectRouter } from '../modules/project/project.router.js'
+import { categoryRouter } from '../modules/category/category.router.js'
+import { publicRouter } from '../modules/public/public.router.js'
+import { mediaRouter } from '../modules/media/media.router.js'
+import type { AppEnv } from '../types/hono.js'
+
+export const apiV1Router = new Hono<AppEnv>()
+
+apiV1Router.route('/health', healthRouter)
+apiV1Router.route('/auth', authRouter)
+apiV1Router.route('/projects', projectRouter)
+apiV1Router.route('/categories', categoryRouter)
+apiV1Router.route('/public', publicRouter)
+apiV1Router.route('/media', mediaRouter)
