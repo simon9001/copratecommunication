@@ -1,19 +1,44 @@
 import type { Context } from 'hono'
 import { PublicService } from './public.service.js'
-import { createSuccessResponse } from '../../errors/errorResponse.js'
+import type { AppEnv } from '../../types/hono.js'
 
 export class PublicController {
-  public static async getMapProjects(c: Context) {
-    const mapData = await PublicService.getMapProjects()
-    return c.json(
-      createSuccessResponse(mapData, 'Public project map data retrieved', undefined, c.get('requestId') as string | undefined)
-    )
+  /** GET /public/map?county=X&status=Y */
+  public static getMapProjects = async (c: Context<AppEnv>) => {
+    const county = c.req.query('county') || undefined
+    const status = c.req.query('status') || undefined
+    const data = await PublicService.getMapProjects(county, status)
+    return c.json({ success: true, data })
   }
 
-  public static async getProjectSummaries(c: Context) {
-    const summaryData = await PublicService.getProjectSummaries()
-    return c.json(
-      createSuccessResponse(summaryData, 'Public project summaries retrieved', undefined, c.get('requestId') as string | undefined)
-    )
+  /** GET /public/counties/stats */
+  public static getCountyStats = async (c: Context<AppEnv>) => {
+    const data = await PublicService.getCountyStats()
+    return c.json({ success: true, data })
+  }
+
+  /** GET /public/projects/:id/route */
+  public static getProjectRoute = async (c: Context<AppEnv>) => {
+    const id = Number(c.req.param('id'))
+    if (!id || isNaN(id)) {
+      return c.json({ success: false, error: 'Invalid project ID' }, 400)
+    }
+    const route = await PublicService.getProjectRoute(id)
+    if (!route) {
+      return c.json({ success: false, error: 'No route found for this project' }, 404)
+    }
+    return c.json({ success: true, data: route })
+  }
+
+  /** GET /public/routes — all project routes for map display */
+  public static getAllProjectRoutes = async (c: Context<AppEnv>) => {
+    const data = await PublicService.getAllProjectRoutes()
+    return c.json({ success: true, data })
+  }
+
+  /** GET /public/summary */
+  public static getProjectSummaries = async (c: Context<AppEnv>) => {
+    const data = await PublicService.getProjectSummaries()
+    return c.json({ success: true, data })
   }
 }
