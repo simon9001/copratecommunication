@@ -4,6 +4,7 @@ import { authMiddleware } from '../../middleware/auth.middleware.js'
 import { requirePermission } from '../../middleware/permission.middleware.js'
 import { z } from 'zod'
 import { validateBody } from '../../middleware/validate.middleware.js'
+import { createMediaSchema } from './media.schema.js'
 import type { AppEnv } from '../../types/hono.js'
 
 export const mediaRouter = new Hono<AppEnv>()
@@ -17,5 +18,8 @@ const uploadServerFileSchema = z.object({
   isFeatured: z.boolean().default(false),
 })
 
+mediaRouter.get('/', MediaController.listAllMedia)
+mediaRouter.post('/', authMiddleware, requirePermission('MEDIA_UPLOAD'), validateBody(createMediaSchema), MediaController.createMedia)
+mediaRouter.delete('/:mediaId', authMiddleware, requirePermission('MEDIA_DELETE'), MediaController.deleteMedia)
 mediaRouter.get('/signature', authMiddleware, requirePermission('MEDIA_UPLOAD'), MediaController.getUploadSignature)
 mediaRouter.post('/upload', authMiddleware, requirePermission('MEDIA_UPLOAD'), validateBody(uploadServerFileSchema), MediaController.uploadToCloudinary)

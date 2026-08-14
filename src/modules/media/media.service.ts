@@ -3,6 +3,10 @@ import { CloudinaryService } from '../../services/cloudinary.service.js'
 import type { CreateMediaDto, UpdateMediaDto } from './media.schema.js'
 
 export class MediaService {
+  public static async listAllMedia() {
+    return MediaRepository.findAll()
+  }
+
   public static async getMediaByProject(projectId: number) {
     return MediaRepository.findByProjectId(projectId)
   }

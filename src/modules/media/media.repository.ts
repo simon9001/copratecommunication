@@ -24,6 +24,18 @@ export interface MediaRow {
 }
 
 export class MediaRepository {
+  public static async findAll(): Promise<(MediaRow & { ProjectName: string; ProjectCode: string })[]> {
+    return query<MediaRow & { ProjectName: string; ProjectCode: string }>(`
+      SELECT 
+        pm.*,
+        p.ProjectName,
+        p.ProjectCode
+      FROM ProjectMedia pm
+      INNER JOIN Projects p ON pm.ProjectId = p.ProjectId
+      ORDER BY pm.CreatedAt DESC
+    `)
+  }
+
   public static async findByProjectId(projectId: number): Promise<MediaRow[]> {
     return query<MediaRow>('SELECT * FROM ProjectMedia WHERE ProjectId = @projectId ORDER BY DisplayOrder ASC, CreatedAt DESC', [
       { name: 'projectId', value: projectId },

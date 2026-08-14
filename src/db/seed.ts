@@ -1,5 +1,219 @@
-import { execute, queryOne } from './query.js'
+import { execute, query, queryOne } from './query.js'
 import { logger } from '../services/logger.service.js'
+import bcrypt from 'bcryptjs'
+
+export const DEFAULT_USERS = [
+  {
+    fullName: 'KeNHA Super Administrator',
+    email: 'admin@kenha.co.ke',
+    password: 'Admin@KeNHA2026!',
+    roles: ['Super Administrator'],
+    description: 'Master administrative account with unrestricted access across the entire KeNHA system.',
+  },
+  {
+    fullName: 'ICT Systems Administrator',
+    email: 'ict.admin@kenha.co.ke',
+    password: 'IctAdmin@KeNHA2026!',
+    roles: ['ICT Administrator'],
+    description: 'Manages users, roles, system health, audit logs, and technical integrations.',
+  },
+  {
+    fullName: 'Corporate Communications Manager',
+    email: 'comm.manager@kenha.co.ke',
+    password: 'Manager@KeNHA2026!',
+    roles: ['Communications Manager'],
+    description: 'Authorizes, approves, and publishes official highway projects and public updates.',
+  },
+  {
+    fullName: 'Senior Communications Editor',
+    email: 'editor@kenha.co.ke',
+    password: 'Editor@KeNHA2026!',
+    roles: ['Communications Editor'],
+    description: 'Reviews project updates, media uploads, and milestone changes.',
+  },
+  {
+    fullName: 'Communications Officer',
+    email: 'officer@kenha.co.ke',
+    password: 'Officer@KeNHA2026!',
+    roles: ['Communications Officer'],
+    description: 'Creates new projects, uploads media, drafts milestone updates, and submits for review.',
+  },
+  {
+    fullName: 'Public Project Observer',
+    email: 'viewer@kenha.co.ke',
+    password: 'Viewer@KeNHA2026!',
+    roles: ['Viewer'],
+    description: 'Read-only access to view project analytics and map explorer data.',
+  },
+]
+
+export const DEFAULT_ROLES = [
+  { name: 'Super Administrator', desc: 'Full system and configuration access' },
+  { name: 'Communications Officer', desc: 'Create and manage project content and submit it for review' },
+  { name: 'Communications Editor', desc: 'Review project content and request changes' },
+  { name: 'Communications Manager', desc: 'Approve and publish official project content' },
+  { name: 'ICT Administrator', desc: 'Manage users, roles, configuration, integrations and system health' },
+  { name: 'Viewer', desc: 'Read-only access to the internal portal' },
+]
+
+export const DEFAULT_PERMISSIONS = [
+  { code: 'PROJECT_CREATE', desc: 'Create projects' },
+  { code: 'PROJECT_VIEW', desc: 'View projects' },
+  { code: 'PROJECT_EDIT', desc: 'Edit projects' },
+  { code: 'PROJECT_DELETE', desc: 'Delete projects' },
+  { code: 'PROJECT_SUBMIT_REVIEW', desc: 'Submit projects for review' },
+  { code: 'PROJECT_REVIEW', desc: 'Review projects' },
+  { code: 'PROJECT_APPROVE', desc: 'Approve projects' },
+  { code: 'PROJECT_PUBLISH', desc: 'Publish projects' },
+  { code: 'PROJECT_UNPUBLISH', desc: 'Unpublish projects' },
+  { code: 'MEDIA_UPLOAD', desc: 'Upload project media' },
+  { code: 'MEDIA_EDIT', desc: 'Edit project media' },
+  { code: 'MEDIA_APPROVE', desc: 'Approve project media' },
+  { code: 'MEDIA_DELETE', desc: 'Delete project media' },
+  { code: 'UPDATE_CREATE', desc: 'Create project updates' },
+  { code: 'UPDATE_EDIT', desc: 'Edit project updates' },
+  { code: 'UPDATE_APPROVE', desc: 'Approve project updates' },
+  { code: 'UPDATE_PUBLISH', desc: 'Publish project updates' },
+  { code: 'DOCUMENT_UPLOAD', desc: 'Upload project documents' },
+  { code: 'DOCUMENT_APPROVE', desc: 'Approve project documents' },
+  { code: 'USER_MANAGE', desc: 'Manage users' },
+  { code: 'ROLE_MANAGE', desc: 'Manage roles' },
+  { code: 'AUDIT_VIEW', desc: 'View audit logs' },
+  { code: 'ANALYTICS_VIEW', desc: 'View analytics' },
+]
+
+export async function seedRolesAndPermissions() {
+  try {
+    logger.info('[Seed] Verifying Roles and Permissions...')
+
+    // 1. Seed Roles
+    for (const r of DEFAULT_ROLES) {
+      const existing = await queryOne('SELECT RoleId FROM Roles WHERE RoleName = @name', [{ name: 'name', value: r.name }])
+      if (!existing) {
+        await execute('INSERT INTO Roles (RoleName, Description) VALUES (@name, @desc)', [
+          { name: 'name', value: r.name },
+          { name: 'desc', value: r.desc },
+        ])
+      }
+    }
+
+    // 2. Seed Permissions
+    for (const p of DEFAULT_PERMISSIONS) {
+      const existing = await queryOne('SELECT PermissionId FROM Permissions WHERE PermissionCode = @code', [{ name: 'code', value: p.code }])
+      if (!existing) {
+        await execute('INSERT INTO Permissions (PermissionCode, Description) VALUES (@code, @desc)', [
+          { name: 'code', value: p.code },
+          { name: 'desc', value: p.desc },
+        ])
+      }
+    }
+
+    // 3. Seed Role Permissions
+    // Super Administrator gets all permissions
+    const superAdminRole = await queryOne<{ RoleId: number }>('SELECT RoleId FROM Roles WHERE RoleName = N\'Super Administrator\'')
+    if (superAdminRole) {
+      const allPerms = await query<{ PermissionId: number }>('SELECT PermissionId FROM Permissions')
+      for (const perm of allPerms) {
+        const hasPerm = await queryOne(
+          'SELECT 1 FROM RolePermissions WHERE RoleId = @rId AND PermissionId = @pId',
+          [
+            { name: 'rId', value: superAdminRole.RoleId },
+            { name: 'pId', value: perm.PermissionId },
+          ]
+        )
+        if (!hasPerm) {
+          await execute('INSERT INTO RolePermissions (RoleId, PermissionId) VALUES (@rId, @pId)', [
+            { name: 'rId', value: superAdminRole.RoleId },
+            { name: 'pId', value: perm.PermissionId },
+          ])
+        }
+      }
+    }
+
+    logger.info('[Seed] Roles and permissions verified successfully.')
+  } catch (err: any) {
+    logger.error('[Seed Error] Failed to seed roles and permissions:', err)
+  }
+}
+
+export async function seedDemoUsers() {
+  try {
+    logger.info('[Seed] Checking and seeding default KeNHA user accounts into SQL Server...')
+
+    await seedRolesAndPermissions()
+
+    for (const u of DEFAULT_USERS) {
+      const existing = await queryOne<{ UserId: number }>(
+        'SELECT UserId FROM Users WHERE Email = @email',
+        [{ name: 'email', value: u.email }]
+      )
+
+      const salt = await bcrypt.genSalt(10)
+      const passwordHash = await bcrypt.hash(u.password, salt)
+
+      let userId: number
+
+      if (existing) {
+        userId = existing.UserId
+        // Update password hash and name to ensure they match credentials
+        await execute(
+          'UPDATE Users SET FullName = @fullName, PasswordHash = @passwordHash, IsActive = 1, UpdatedAt = SYSUTCDATETIME() WHERE UserId = @userId',
+          [
+            { name: 'userId', value: userId },
+            { name: 'fullName', value: u.fullName },
+            { name: 'passwordHash', value: passwordHash },
+          ]
+        )
+      } else {
+        const insertRes = await execute(
+          `INSERT INTO Users (FullName, Email, PasswordHash, IsActive)
+           OUTPUT INSERTED.UserId
+           VALUES (@fullName, @email, @passwordHash, 1)`,
+          [
+            { name: 'fullName', value: u.fullName },
+            { name: 'email', value: u.email },
+            { name: 'passwordHash', value: passwordHash },
+          ]
+        )
+        userId = insertRes.recordset?.[0]?.UserId
+      }
+
+      if (userId) {
+        // Link roles
+        for (const roleName of u.roles) {
+          const role = await queryOne<{ RoleId: number }>(
+            'SELECT RoleId FROM Roles WHERE RoleName = @roleName',
+            [{ name: 'roleName', value: roleName }]
+          )
+
+          if (role) {
+            const hasRole = await queryOne(
+              'SELECT 1 FROM UserRoles WHERE UserId = @userId AND RoleId = @roleId',
+              [
+                { name: 'userId', value: userId },
+                { name: 'roleId', value: role.RoleId },
+              ]
+            )
+
+            if (!hasRole) {
+              await execute(
+                'INSERT INTO UserRoles (UserId, RoleId) VALUES (@userId, @roleId)',
+                [
+                  { name: 'userId', value: userId },
+                  { name: 'roleId', value: role.RoleId },
+                ]
+              )
+            }
+          }
+        }
+      }
+    }
+
+    logger.info('[Seed] Successfully verified and seeded all KeNHA admin and user accounts.')
+  } catch (err: any) {
+    logger.error('[Seed Error] Failed to seed user accounts:', err)
+  }
+}
 
 export async function seedDemoProjects() {
   try {

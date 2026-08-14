@@ -8,15 +8,15 @@ export const createMediaSchema = z.object({
   mediaType: mediaTypeEnum,
   title: z.string().max(250).optional(),
   description: z.string().max(1000).optional(),
-  mediaUrl: z.string().url(),
-  thumbnailUrl: z.string().url().optional(),
+  mediaUrl: z.string().min(1, 'Media URL or file data is required'),
+  thumbnailUrl: z.string().optional().nullable(),
   durationSeconds: z.number().int().optional(),
   fileSizeBytes: z.number().int().optional(),
   mimeType: z.string().max(100).optional(),
-  approvalStatus: mediaApprovalEnum.default('Draft'),
+  approvalStatus: mediaApprovalEnum.default('Approved'),
   displayOrder: z.number().int().default(0),
   isFeatured: z.boolean().default(false),
-  isPublished: z.boolean().default(false),
+  isPublished: z.boolean().default(true),
 })
 
 export const updateMediaSchema = createMediaSchema.partial()

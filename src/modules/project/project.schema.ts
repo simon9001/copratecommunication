@@ -20,6 +20,10 @@ export const createProjectSchema = z.object({
   isFeatured: z.boolean().default(false),
   isPublished: z.boolean().default(false),
   categoryIds: z.array(z.number().int()).optional(),
+  county: z.string().optional(),
+  subCounty: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
 })
 
 export const updateProjectSchema = createProjectSchema.partial()

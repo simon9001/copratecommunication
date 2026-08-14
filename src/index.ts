@@ -11,7 +11,7 @@ import { closeDbPool, checkDbHealth } from './db/connection.js'
 import { CloudinaryService } from './services/cloudinary.service.js'
 import { HealthController } from './modules/health/health.controller.js'
 import { logger } from './services/logger.service.js'
-import { seedDemoProjects } from './db/seed.js'
+import { seedDemoProjects, seedDemoUsers } from './db/seed.js'
 import type { AppEnv } from './types/hono.js'
 
 const app = new Hono<AppEnv>()
@@ -73,7 +73,8 @@ serve(
 
     if (dbStatus.status === 'healthy') {
       logger.info(`✅ [Database] SQL Server connected successfully (${dbStatus.latencyMs}ms)`)
-      // Seed sample projects if database is empty
+      // Seed default accounts and sample projects
+      await seedDemoUsers()
       await seedDemoProjects()
     } else {
       logger.warn(`⚠️ [Database Alert] SQL Server health probe degraded: ${dbStatus.error}`)

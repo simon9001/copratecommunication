@@ -171,6 +171,24 @@ export class ProjectRepository {
       { name: 'projectId', value: createdProject.ProjectId },
     ])
 
+    if (dto.county || (dto.latitude !== undefined && dto.longitude !== undefined)) {
+      await execute(
+        `INSERT INTO ProjectLocations (
+          ProjectId, LocationName, County, SubCounty, Latitude, Longitude, IsPrimaryLocation
+        ) VALUES (
+          @projectId, @locationName, @county, @subCounty, @lat, @lng, 1
+        )`,
+        [
+          { name: 'projectId', value: createdProject.ProjectId },
+          { name: 'locationName', value: dto.projectName },
+          { name: 'county', value: dto.county || 'Nairobi' },
+          { name: 'subCounty', value: dto.subCounty || '' },
+          { name: 'lat', value: dto.latitude ?? -1.286389 },
+          { name: 'lng', value: dto.longitude ?? 36.817222 },
+        ]
+      )
+    }
+
     await AuditRepository.logWorkflow(createdProject.ProjectId, 'CREATE_PROJECT', null, dto.publicationStatus, 'Project created', userId)
     await AuditRepository.log(userId, 'CREATE', 'Projects', createdProject.ProjectId.toString(), null, createdProject)
 
@@ -223,6 +241,40 @@ export class ProjectRepository {
         { name: 'updatedBy', value: userId },
       ]
     )
+
+    if (dto.county !== undefined || dto.subCounty !== undefined || dto.latitude !== undefined || dto.longitude !== undefined) {
+      const loc = await queryOne('SELECT LocationId FROM ProjectLocations WHERE ProjectId = @id AND IsPrimaryLocation = 1', [{ name: 'id', value: id }])
+      if (loc) {
+        await execute(
+          `UPDATE ProjectLocations
+           SET County = ISNULL(@county, County),
+               SubCounty = ISNULL(@subCounty, SubCounty),
+               Latitude = ISNULL(@latitude, Latitude),
+               Longitude = ISNULL(@longitude, Longitude)
+           WHERE ProjectId = @id AND IsPrimaryLocation = 1`,
+          [
+            { name: 'id', value: id },
+            { name: 'county', value: dto.county ?? null },
+            { name: 'subCounty', value: dto.subCounty ?? null },
+            { name: 'latitude', value: dto.latitude ?? null },
+            { name: 'longitude', value: dto.longitude ?? null },
+          ]
+        )
+      } else if (dto.county || (dto.latitude && dto.longitude)) {
+        await execute(
+          `INSERT INTO ProjectLocations (ProjectId, LocationName, County, SubCounty, Latitude, Longitude, IsPrimaryLocation)
+           VALUES (@id, @name, @county, @subCounty, @latitude, @longitude, 1)`,
+          [
+            { name: 'id', value: id },
+            { name: 'name', value: dto.projectName || existing.ProjectName },
+            { name: 'county', value: dto.county || 'Nairobi' },
+            { name: 'subCounty', value: dto.subCounty || '' },
+            { name: 'latitude', value: dto.latitude ?? -1.286389 },
+            { name: 'longitude', value: dto.longitude ?? 36.817222 },
+          ]
+        )
+      }
+    }
 
     const updatedProject = (await this.findById(id))!
     await AuditRepository.log(userId, 'UPDATE', 'Projects', id.toString(), existing, updatedProject)

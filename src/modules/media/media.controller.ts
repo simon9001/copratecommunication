@@ -13,6 +13,13 @@ export interface UploadServerFileBody {
 }
 
 export class MediaController {
+  public static async listAllMedia(c: Context) {
+    const media = await MediaService.listAllMedia()
+    return c.json(
+      createSuccessResponse(media, 'Media items retrieved', undefined, c.get('requestId') as string | undefined)
+    )
+  }
+
   public static async createMedia(c: Context) {
     const user = c.get('user')
     const body = c.get('validatedBody') as CreateMediaDto
