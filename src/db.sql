@@ -255,8 +255,8 @@ CREATE TABLE ProjectMedia (
     Title NVARCHAR(250) NULL,
     Description NVARCHAR(1000) NULL,
 
-    MediaUrl NVARCHAR(2000) NOT NULL,
-    ThumbnailUrl NVARCHAR(2000) NULL,
+    MediaUrl NVARCHAR(MAX) NOT NULL,
+    ThumbnailUrl NVARCHAR(MAX) NULL,
 
     DurationSeconds INT NULL,
     FileSizeBytes BIGINT NULL,

@@ -34,10 +34,16 @@ export class ProjectService {
         }
         const locations = await LocationRepository.findByProjectId(project.ProjectId);
         const media = await MediaRepository.findByProjectId(project.ProjectId);
+        const updates = await UpdateRepository.findUpdatesByProjectId(project.ProjectId);
+        const milestones = await UpdateRepository.findMilestonesByProjectId(project.ProjectId);
+        const vrSettings = await VRRepository.getSettings(project.ProjectId);
         return {
             ...project,
             locations,
             media,
+            updates,
+            milestones,
+            vrSettings,
         };
     }
     static async createProject(dto, userId) {

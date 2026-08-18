@@ -14,8 +14,19 @@ export function requirePermission(requiredPermission: string) {
       throw new UnauthorizedError('User authentication required')
     }
 
-    // Super Administrator bypasses individual permission checks
-    if (user.roles.includes('Super Administrator')) {
+    const isAdmin =
+      user.roles &&
+      user.roles.some((r) => {
+        const lower = (r || '').toLowerCase()
+        return (
+          lower.includes('admin') ||
+          lower.includes('super') ||
+          lower.includes('manager')
+        )
+      })
+
+    // Super Administrator and Admin/Manager roles bypass individual permission checks
+    if (isAdmin) {
       return await next()
     }
 
@@ -41,7 +52,18 @@ export function requireRole(requiredRole: string) {
       throw new UnauthorizedError('User authentication required')
     }
 
-    if (user.roles.includes('Super Administrator')) {
+    const isAdmin =
+      user.roles &&
+      user.roles.some((r) => {
+        const lower = (r || '').toLowerCase()
+        return (
+          lower.includes('admin') ||
+          lower.includes('super') ||
+          lower.includes('manager')
+        )
+      })
+
+    if (isAdmin) {
       return await next()
     }
 

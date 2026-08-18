@@ -80,7 +80,33 @@ export const DEFAULT_PERMISSIONS = [
 ];
 export async function seedRolesAndPermissions() {
     try {
-        logger.info('[Seed] Verifying Roles and Permissions...');
+        logger.info('[Seed] Verifying Roles, Permissions, and Table Schema Migrations...');
+        // 0. Auto-migrate ProjectMedia columns to NVARCHAR(MAX) to support base64 images and large URLs
+        try {
+            await execute(`
+        IF EXISTS (
+          SELECT 1 FROM sys.columns c
+          JOIN sys.tables t ON c.object_id = t.object_id
+          WHERE t.name = 'ProjectMedia' AND c.name = 'MediaUrl' AND c.max_length <> -1
+        )
+        BEGIN
+          ALTER TABLE ProjectMedia ALTER COLUMN MediaUrl NVARCHAR(MAX) NOT NULL;
+        END
+
+        IF EXISTS (
+          SELECT 1 FROM sys.columns c
+          JOIN sys.tables t ON c.object_id = t.object_id
+          WHERE t.name = 'ProjectMedia' AND c.name = 'ThumbnailUrl' AND c.max_length <> -1
+        )
+        BEGIN
+          ALTER TABLE ProjectMedia ALTER COLUMN ThumbnailUrl NVARCHAR(MAX) NULL;
+        END
+      `);
+            logger.info('[Migration] ProjectMedia table columns verified as NVARCHAR(MAX).');
+        }
+        catch (migErr) {
+            logger.warn('[Migration Warning] Column alteration note:', migErr?.message || migErr);
+        }
         // 1. Seed Roles
         for (const r of DEFAULT_ROLES) {
             const existing = await queryOne('SELECT RoleId FROM Roles WHERE RoleName = @name', [{ name: 'name', value: r.name }]);
@@ -101,7 +127,81 @@ export async function seedRolesAndPermissions() {
                 ]);
             }
         }
-        // 3. Seed Role Permissions
+        // 3. Seed Role Permissions for All Roles
+        const rolePermissionMappings = {
+            'Communications Officer': [
+                'PROJECT_CREATE',
+                'PROJECT_VIEW',
+                'PROJECT_EDIT',
+                'PROJECT_SUBMIT_REVIEW',
+                'MEDIA_UPLOAD',
+                'MEDIA_EDIT',
+                'UPDATE_CREATE',
+                'UPDATE_EDIT',
+                'DOCUMENT_UPLOAD',
+            ],
+            'Communications Editor': [
+                'PROJECT_VIEW',
+                'PROJECT_EDIT',
+                'PROJECT_REVIEW',
+                'MEDIA_EDIT',
+                'MEDIA_APPROVE',
+                'UPDATE_EDIT',
+                'UPDATE_APPROVE',
+                'DOCUMENT_APPROVE',
+            ],
+            'Communications Manager': [
+                'PROJECT_VIEW',
+                'PROJECT_EDIT',
+                'PROJECT_REVIEW',
+                'PROJECT_APPROVE',
+                'PROJECT_PUBLISH',
+                'PROJECT_UNPUBLISH',
+                'MEDIA_UPLOAD',
+                'MEDIA_EDIT',
+                'MEDIA_APPROVE',
+                'UPDATE_CREATE',
+                'UPDATE_EDIT',
+                'UPDATE_APPROVE',
+                'UPDATE_PUBLISH',
+                'DOCUMENT_UPLOAD',
+                'DOCUMENT_APPROVE',
+                'ANALYTICS_VIEW',
+            ],
+            'ICT Administrator': [
+                'PROJECT_VIEW',
+                'USER_MANAGE',
+                'ROLE_MANAGE',
+                'AUDIT_VIEW',
+                'ANALYTICS_VIEW',
+                'MEDIA_UPLOAD',
+            ],
+            'Viewer': [
+                'PROJECT_VIEW',
+                'ANALYTICS_VIEW',
+            ],
+        };
+        // Assign mapped permissions to each role
+        for (const [roleName, permCodes] of Object.entries(rolePermissionMappings)) {
+            const role = await queryOne('SELECT RoleId FROM Roles WHERE RoleName = @rName', [{ name: 'rName', value: roleName }]);
+            if (role) {
+                for (const code of permCodes) {
+                    const perm = await queryOne('SELECT PermissionId FROM Permissions WHERE PermissionCode = @code', [{ name: 'code', value: code }]);
+                    if (perm) {
+                        const hasPerm = await queryOne('SELECT 1 FROM RolePermissions WHERE RoleId = @rId AND PermissionId = @pId', [
+                            { name: 'rId', value: role.RoleId },
+                            { name: 'pId', value: perm.PermissionId },
+                        ]);
+                        if (!hasPerm) {
+                            await execute('INSERT INTO RolePermissions (RoleId, PermissionId) VALUES (@rId, @pId)', [
+                                { name: 'rId', value: role.RoleId },
+                                { name: 'pId', value: perm.PermissionId },
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
         // Super Administrator gets all permissions
         const superAdminRole = await queryOne('SELECT RoleId FROM Roles WHERE RoleName = N\'Super Administrator\'');
         if (superAdminRole) {
@@ -119,7 +219,7 @@ export async function seedRolesAndPermissions() {
                 }
             }
         }
-        logger.info('[Seed] Roles and permissions verified successfully.');
+        logger.info('[Seed] Roles, permissions, and schema verified successfully.');
     }
     catch (err) {
         logger.error('[Seed Error] Failed to seed roles and permissions:', err);
