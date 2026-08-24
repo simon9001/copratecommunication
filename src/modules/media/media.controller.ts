@@ -51,7 +51,9 @@ export class MediaController {
 
   public static async getUploadSignature(c: Context) {
     const folder = c.req.query('folder') || 'kenha_vr_projects'
-    const signatureData = await MediaService.generateCloudinarySignature(folder)
+    const rt = c.req.query('resourceType')
+    const resourceType = rt === 'video' || rt === 'image' ? rt : 'auto'
+    const signatureData = await MediaService.generateCloudinarySignature(folder, resourceType)
     return c.json(
       createSuccessResponse(
         signatureData,

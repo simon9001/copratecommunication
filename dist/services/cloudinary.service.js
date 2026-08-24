@@ -69,10 +69,11 @@ export class CloudinaryService {
             throw new BadRequestError('Cloudinary is not properly configured in server environment variables');
         }
         const timestamp = Math.round(new Date().getTime() / 1000);
+        const tagsStr = tags.join(',');
         const paramsToSign = {
             timestamp,
             folder,
-            tags: tags.join(','),
+            tags: tagsStr,
         };
         if (env.CLOUDINARY_UPLOAD_PRESET) {
             paramsToSign.upload_preset = env.CLOUDINARY_UPLOAD_PRESET;
@@ -85,6 +86,7 @@ export class CloudinaryService {
             cloudName: env.CLOUDINARY_CLOUD_NAME,
             uploadPreset: env.CLOUDINARY_UPLOAD_PRESET,
             folder,
+            tags: tagsStr,
         };
     }
     /**

@@ -23,8 +23,11 @@ export class MediaService {
     return MediaRepository.delete(mediaId)
   }
 
-  public static async generateCloudinarySignature(folder: string = 'kenha_vr_projects') {
-    return CloudinaryService.generateUploadSignature(folder)
+  public static async generateCloudinarySignature(
+    folder: string = 'kenha_vr_projects',
+    resourceType: 'image' | 'video' | 'auto' = 'auto'
+  ) {
+    return CloudinaryService.generateUploadSignature(folder, ['kenha'], resourceType)
   }
 
   public static async uploadToCloudinaryAndSave(

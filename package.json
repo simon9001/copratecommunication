@@ -8,6 +8,7 @@
     "db:diagnose": "tsx src/db/diagnose.ts",
     "db:seed": "tsx src/db/seedAccounts.ts",
     "db:publish-all": "tsx src/db/publishAll.ts",
+    "media:backfill": "tsx src/scripts/backfillVideoRenditions.ts",
     "test:query": "tsx src/db/query.test.ts",
     "test:supabase": "tsx src/services/supabase.service.test.ts",
     "test": "tsx src/db/query.test.ts && tsx src/services/supabase.service.test.ts"

@@ -20,6 +20,7 @@ app.use('*', cors({
         'http://localhost:5173',
         'http://localhost:4173',
         'https://copratecommunicatrion.netlify.app',
+        'https://copratecommunication.netlify.app',
     ],
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: [
