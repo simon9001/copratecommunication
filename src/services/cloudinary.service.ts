@@ -23,6 +23,7 @@ export interface CloudinarySignaturePayload {
   cloudName: string
   uploadPreset?: string
   folder: string
+  tags?: string
 }
 
 export interface CloudinaryHealthResult {
@@ -95,10 +96,11 @@ export class CloudinaryService {
     }
 
     const timestamp = Math.round(new Date().getTime() / 1000)
+    const tagsStr = tags.join(',')
     const paramsToSign: Record<string, any> = {
       timestamp,
       folder,
-      tags: tags.join(','),
+      tags: tagsStr,
     }
 
     if (env.CLOUDINARY_UPLOAD_PRESET) {
@@ -114,6 +116,7 @@ export class CloudinaryService {
       cloudName: env.CLOUDINARY_CLOUD_NAME,
       uploadPreset: env.CLOUDINARY_UPLOAD_PRESET,
       folder,
+      tags: tagsStr,
     }
   }
 
