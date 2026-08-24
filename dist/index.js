@@ -16,10 +16,23 @@ import { validateSupabaseConfigAtStartup, checkSupabaseHealth } from './services
 const app = new Hono();
 // Enable CORS for frontend integration
 app.use('*', cors({
-    origin: ['http://localhost:5173', 'https://copratecommunicatrion.netlify.app'],
+    origin: [
+        'http://localhost:5173',
+        'http://localhost:4173',
+        'https://copratecommunicatrion.netlify.app',
+    ],
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+    allowHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Request-Id',
+        'Accept',
+        'Origin',
+        'multipart/form-data',
+    ],
+    exposeHeaders: ['Content-Length', 'X-Request-Id'],
     credentials: true,
+    maxAge: 86400,
 }));
 // Global Middlewares
 app.use('*', requestIdMiddleware);
