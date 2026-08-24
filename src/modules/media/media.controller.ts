@@ -5,7 +5,7 @@ import type { CreateMediaDto } from './media.schema.js'
 
 export interface UploadServerFileBody {
   projectId: number
-  mediaType: 'VIDEO' | 'IMAGE' | '360_VIDEO' | '360_IMAGE' | 'MODEL_3D'
+  mediaType: string
   title?: string
   description?: string
   fileData: string

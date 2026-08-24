@@ -8,9 +8,9 @@ import { createMediaSchema, updateMediaSchema } from './media.schema.js';
 export const mediaRouter = new Hono();
 const uploadServerFileSchema = z.object({
     projectId: z.number().int(),
-    mediaType: z.enum(['VIDEO', 'IMAGE', '360_VIDEO', '360_IMAGE', 'MODEL_3D']),
+    mediaType: z.string().min(1),
     title: z.string().max(250).optional(),
-    description: z.string().max(1000).optional(),
+    description: z.string().max(2000).optional(),
     fileData: z.string().min(1, 'Base64/URL data string required'),
     isFeatured: z.boolean().default(false),
 });

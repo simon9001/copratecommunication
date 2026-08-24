@@ -29,14 +29,14 @@ export class MediaService {
 
   public static async uploadToCloudinaryAndSave(
     projectId: number,
-    mediaType: 'VIDEO' | 'IMAGE' | '360_VIDEO' | '360_IMAGE' | 'MODEL_3D',
+    mediaType: string,
     fileData: string,
     title?: string,
     description?: string,
     isFeatured: boolean = false,
     userId: number | null = null
   ) {
-    const resourceType = mediaType.includes('VIDEO') ? 'video' : 'image'
+    const resourceType = mediaType.includes('VIDEO') ? 'video' : mediaType.includes('IMAGE') ? 'image' : 'auto'
     const cloudinaryRes = await CloudinaryService.uploadFile(fileData, `projects/${projectId}`, resourceType)
 
     const mediaRecord = await MediaRepository.create(

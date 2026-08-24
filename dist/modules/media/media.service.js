@@ -20,7 +20,7 @@ export class MediaService {
         return CloudinaryService.generateUploadSignature(folder);
     }
     static async uploadToCloudinaryAndSave(projectId, mediaType, fileData, title, description, isFeatured = false, userId = null) {
-        const resourceType = mediaType.includes('VIDEO') ? 'video' : 'image';
+        const resourceType = mediaType.includes('VIDEO') ? 'video' : mediaType.includes('IMAGE') ? 'image' : 'auto';
         const cloudinaryRes = await CloudinaryService.uploadFile(fileData, `projects/${projectId}`, resourceType);
         const mediaRecord = await MediaRepository.create({
             projectId,
