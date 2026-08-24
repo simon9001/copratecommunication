@@ -34,7 +34,6 @@ app.use(
       'X-Request-Id',
       'Accept',
       'Origin',
-      'multipart/form-data',
     ],
     exposeHeaders: ['Content-Length', 'X-Request-Id'],
     credentials: true,
