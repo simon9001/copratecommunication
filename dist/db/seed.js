@@ -1,286 +1,229 @@
 import { execute, query, queryOne } from './query.js';
 import { logger } from '../services/logger.service.js';
 import bcrypt from 'bcryptjs';
-export const DEFAULT_USERS = [
-    {
-        fullName: 'KeNHA Super Administrator',
-        email: 'admin@kenha.co.ke',
-        password: 'Admin@KeNHA2026!',
-        roles: ['Super Administrator'],
-        description: 'Master administrative account with unrestricted access across the entire KeNHA system.',
-    },
-    {
-        fullName: 'ICT Systems Administrator',
-        email: 'ict.admin@kenha.co.ke',
-        password: 'IctAdmin@KeNHA2026!',
-        roles: ['ICT Administrator'],
-        description: 'Manages users, roles, system health, audit logs, and technical integrations.',
-    },
-    {
-        fullName: 'Corporate Communications Manager',
-        email: 'comm.manager@kenha.co.ke',
-        password: 'Manager@KeNHA2026!',
-        roles: ['Communications Manager'],
-        description: 'Authorizes, approves, and publishes official highway projects and public updates.',
-    },
-    {
-        fullName: 'Senior Communications Editor',
-        email: 'editor@kenha.co.ke',
-        password: 'Editor@KeNHA2026!',
-        roles: ['Communications Editor'],
-        description: 'Reviews project updates, media uploads, and milestone changes.',
-    },
-    {
-        fullName: 'Communications Officer',
-        email: 'officer@kenha.co.ke',
-        password: 'Officer@KeNHA2026!',
-        roles: ['Communications Officer'],
-        description: 'Creates new projects, uploads media, drafts milestone updates, and submits for review.',
-    },
-    {
-        fullName: 'Public Project Observer',
-        email: 'viewer@kenha.co.ke',
-        password: 'Viewer@KeNHA2026!',
-        roles: ['Viewer'],
-        description: 'Read-only access to view project analytics and map explorer data.',
-    },
-];
+/**
+ * ============================================================
+ * SINGLE-ACCOUNT IDENTITY MODEL
+ * ============================================================
+ * This system has exactly two audiences:
+ *
+ *   1. VISITOR  - anonymous, no account. Reads the published
+ *                 globe/map through the /api/v1/public routes.
+ *   2. EDITOR   - the one and only login. Creates and publishes
+ *                 every piece of content in the system.
+ *
+ * There is no approval chain, because there is nobody to approve
+ * to. The Editor writes and the Editor publishes.
+ *
+ * The tables themselves are created by supabase/schema.sql. This
+ * module only guarantees the Editor account exists with a freshly
+ * hashed password, and that nothing else does.
+ */
+export const EDITOR_ROLE = 'Editor';
 export const DEFAULT_ROLES = [
-    { name: 'Super Administrator', desc: 'Full system and configuration access' },
-    { name: 'Communications Officer', desc: 'Create and manage project content and submit it for review' },
-    { name: 'Communications Editor', desc: 'Review project content and request changes' },
-    { name: 'Communications Manager', desc: 'Approve and publish official project content' },
-    { name: 'ICT Administrator', desc: 'Manage users, roles, configuration, integrations and system health' },
-    { name: 'Viewer', desc: 'Read-only access to the internal portal' },
+    { name: EDITOR_ROLE, desc: 'The sole content account: creates, edits, and publishes all highway project content' },
 ];
+/**
+ * Every permission the Editor holds. Review/approval codes are gone
+ * (nothing to review against) and so are USER_MANAGE / ROLE_MANAGE
+ * (there are no other accounts to manage).
+ */
 export const DEFAULT_PERMISSIONS = [
     { code: 'PROJECT_CREATE', desc: 'Create projects' },
     { code: 'PROJECT_VIEW', desc: 'View projects' },
     { code: 'PROJECT_EDIT', desc: 'Edit projects' },
     { code: 'PROJECT_DELETE', desc: 'Delete projects' },
-    { code: 'PROJECT_SUBMIT_REVIEW', desc: 'Submit projects for review' },
-    { code: 'PROJECT_REVIEW', desc: 'Review projects' },
-    { code: 'PROJECT_APPROVE', desc: 'Approve projects' },
-    { code: 'PROJECT_PUBLISH', desc: 'Publish projects' },
-    { code: 'PROJECT_UNPUBLISH', desc: 'Unpublish projects' },
+    { code: 'PROJECT_PUBLISH', desc: 'Publish projects to the public globe' },
+    { code: 'PROJECT_UNPUBLISH', desc: 'Withdraw projects from the public globe' },
     { code: 'MEDIA_UPLOAD', desc: 'Upload project media' },
     { code: 'MEDIA_EDIT', desc: 'Edit project media' },
-    { code: 'MEDIA_APPROVE', desc: 'Approve project media' },
     { code: 'MEDIA_DELETE', desc: 'Delete project media' },
     { code: 'UPDATE_CREATE', desc: 'Create project updates' },
     { code: 'UPDATE_EDIT', desc: 'Edit project updates' },
-    { code: 'UPDATE_APPROVE', desc: 'Approve project updates' },
     { code: 'UPDATE_PUBLISH', desc: 'Publish project updates' },
     { code: 'DOCUMENT_UPLOAD', desc: 'Upload project documents' },
-    { code: 'DOCUMENT_APPROVE', desc: 'Approve project documents' },
-    { code: 'USER_MANAGE', desc: 'Manage users' },
-    { code: 'ROLE_MANAGE', desc: 'Manage roles' },
-    { code: 'AUDIT_VIEW', desc: 'View audit logs' },
-    { code: 'ANALYTICS_VIEW', desc: 'View analytics' },
+    { code: 'CATEGORY_MANAGE', desc: 'Manage infrastructure categories' },
+    { code: 'ANALYTICS_VIEW', desc: 'View dashboard analytics' },
 ];
+/** The single account. */
+export const EDITOR_ACCOUNT = {
+    fullName: 'KeNHA Content Editor',
+    email: 'editor@kenha.co.ke',
+    password: 'Editor@KeNHA2026!',
+    roles: [EDITOR_ROLE],
+    description: 'Adds highway projects, photos, videos and updates, and publishes them to the public globe.',
+};
+/** Roles seeded by earlier versions of this system that must not survive. */
+const RETIRED_ROLES = [
+    'Super Administrator',
+    'ICT Administrator',
+    'Communications Manager',
+    'Communications Editor',
+    'Communications Officer',
+    'Viewer',
+];
+/**
+ * Confirms the schema has actually been applied. Without this the first
+ * failure would be a confusing "relation does not exist" from whichever
+ * insert happened to run first.
+ */
+export async function assertSchemaPresent() {
+    const row = await queryOne(`SELECT to_regclass('public."Projects"') IS NOT NULL AS present`);
+    if (!row?.present) {
+        logger.error('[Schema Missing] The "Projects" table was not found. ' +
+            'Run supabase/schema.sql in the Supabase SQL Editor before starting the API.');
+        return false;
+    }
+    return true;
+}
 export async function seedRolesAndPermissions() {
     try {
-        logger.info('[Seed] Verifying Roles, Permissions, and Table Schema Migrations...');
-        // 0. Auto-migrate ProjectMedia columns to NVARCHAR(MAX) to support base64 images and large URLs
-        try {
-            await execute(`
-        IF EXISTS (
-          SELECT 1 FROM sys.columns c
-          JOIN sys.tables t ON c.object_id = t.object_id
-          WHERE t.name = 'ProjectMedia' AND c.name = 'MediaUrl' AND c.max_length <> -1
-        )
-        BEGIN
-          ALTER TABLE ProjectMedia ALTER COLUMN MediaUrl NVARCHAR(MAX) NOT NULL;
-        END
-
-        IF EXISTS (
-          SELECT 1 FROM sys.columns c
-          JOIN sys.tables t ON c.object_id = t.object_id
-          WHERE t.name = 'ProjectMedia' AND c.name = 'ThumbnailUrl' AND c.max_length <> -1
-        )
-        BEGIN
-          ALTER TABLE ProjectMedia ALTER COLUMN ThumbnailUrl NVARCHAR(MAX) NULL;
-        END
-      `);
-            logger.info('[Migration] ProjectMedia table columns verified as NVARCHAR(MAX).');
-        }
-        catch (migErr) {
-            logger.warn('[Migration Warning] Column alteration note:', migErr?.message || migErr);
-        }
-        // 1. Seed Roles
+        logger.info('[Seed] Verifying Editor role and permissions...');
+        // 1. Seed the Editor role
         for (const r of DEFAULT_ROLES) {
-            const existing = await queryOne('SELECT RoleId FROM Roles WHERE RoleName = @name', [{ name: 'name', value: r.name }]);
-            if (!existing) {
-                await execute('INSERT INTO Roles (RoleName, Description) VALUES (@name, @desc)', [
-                    { name: 'name', value: r.name },
-                    { name: 'desc', value: r.desc },
-                ]);
-            }
+            await execute(`INSERT INTO "Roles" ("RoleName", "Description")
+         VALUES (@name, @desc)
+         ON CONFLICT ("RoleName") DO NOTHING`, [
+                { name: 'name', value: r.name },
+                { name: 'desc', value: r.desc },
+            ]);
         }
-        // 2. Seed Permissions
+        // 2. Seed permissions
         for (const p of DEFAULT_PERMISSIONS) {
-            const existing = await queryOne('SELECT PermissionId FROM Permissions WHERE PermissionCode = @code', [{ name: 'code', value: p.code }]);
-            if (!existing) {
-                await execute('INSERT INTO Permissions (PermissionCode, Description) VALUES (@code, @desc)', [
-                    { name: 'code', value: p.code },
-                    { name: 'desc', value: p.desc },
-                ]);
-            }
+            await execute(`INSERT INTO "Permissions" ("PermissionCode", "Description")
+         VALUES (@code, @desc)
+         ON CONFLICT ("PermissionCode") DO NOTHING`, [
+                { name: 'code', value: p.code },
+                { name: 'desc', value: p.desc },
+            ]);
         }
-        // 3. Seed Role Permissions for All Roles
-        const rolePermissionMappings = {
-            'Communications Officer': [
-                'PROJECT_CREATE',
-                'PROJECT_VIEW',
-                'PROJECT_EDIT',
-                'PROJECT_SUBMIT_REVIEW',
-                'MEDIA_UPLOAD',
-                'MEDIA_EDIT',
-                'UPDATE_CREATE',
-                'UPDATE_EDIT',
-                'DOCUMENT_UPLOAD',
-            ],
-            'Communications Editor': [
-                'PROJECT_VIEW',
-                'PROJECT_EDIT',
-                'PROJECT_REVIEW',
-                'MEDIA_EDIT',
-                'MEDIA_APPROVE',
-                'UPDATE_EDIT',
-                'UPDATE_APPROVE',
-                'DOCUMENT_APPROVE',
-            ],
-            'Communications Manager': [
-                'PROJECT_VIEW',
-                'PROJECT_EDIT',
-                'PROJECT_REVIEW',
-                'PROJECT_APPROVE',
-                'PROJECT_PUBLISH',
-                'PROJECT_UNPUBLISH',
-                'MEDIA_UPLOAD',
-                'MEDIA_EDIT',
-                'MEDIA_APPROVE',
-                'UPDATE_CREATE',
-                'UPDATE_EDIT',
-                'UPDATE_APPROVE',
-                'UPDATE_PUBLISH',
-                'DOCUMENT_UPLOAD',
-                'DOCUMENT_APPROVE',
-                'ANALYTICS_VIEW',
-            ],
-            'ICT Administrator': [
-                'PROJECT_VIEW',
-                'USER_MANAGE',
-                'ROLE_MANAGE',
-                'AUDIT_VIEW',
-                'ANALYTICS_VIEW',
-                'MEDIA_UPLOAD',
-            ],
-            'Viewer': [
-                'PROJECT_VIEW',
-                'ANALYTICS_VIEW',
-            ],
-        };
-        // Assign mapped permissions to each role
-        for (const [roleName, permCodes] of Object.entries(rolePermissionMappings)) {
-            const role = await queryOne('SELECT RoleId FROM Roles WHERE RoleName = @rName', [{ name: 'rName', value: roleName }]);
-            if (role) {
-                for (const code of permCodes) {
-                    const perm = await queryOne('SELECT PermissionId FROM Permissions WHERE PermissionCode = @code', [{ name: 'code', value: code }]);
-                    if (perm) {
-                        const hasPerm = await queryOne('SELECT 1 FROM RolePermissions WHERE RoleId = @rId AND PermissionId = @pId', [
-                            { name: 'rId', value: role.RoleId },
-                            { name: 'pId', value: perm.PermissionId },
-                        ]);
-                        if (!hasPerm) {
-                            await execute('INSERT INTO RolePermissions (RoleId, PermissionId) VALUES (@rId, @pId)', [
-                                { name: 'rId', value: role.RoleId },
-                                { name: 'pId', value: perm.PermissionId },
-                            ]);
-                        }
-                    }
-                }
-            }
-        }
-        // Super Administrator gets all permissions
-        const superAdminRole = await queryOne('SELECT RoleId FROM Roles WHERE RoleName = N\'Super Administrator\'');
-        if (superAdminRole) {
-            const allPerms = await query('SELECT PermissionId FROM Permissions');
-            for (const perm of allPerms) {
-                const hasPerm = await queryOne('SELECT 1 FROM RolePermissions WHERE RoleId = @rId AND PermissionId = @pId', [
-                    { name: 'rId', value: superAdminRole.RoleId },
-                    { name: 'pId', value: perm.PermissionId },
-                ]);
-                if (!hasPerm) {
-                    await execute('INSERT INTO RolePermissions (RoleId, PermissionId) VALUES (@rId, @pId)', [
-                        { name: 'rId', value: superAdminRole.RoleId },
-                        { name: 'pId', value: perm.PermissionId },
-                    ]);
-                }
-            }
-        }
-        logger.info('[Seed] Roles, permissions, and schema verified successfully.');
+        // 3. The Editor role holds every permission in DEFAULT_PERMISSIONS
+        await execute(`INSERT INTO "RolePermissions" ("RoleId", "PermissionId")
+       SELECT r."RoleId", p."PermissionId"
+       FROM "Roles" r
+       CROSS JOIN "Permissions" p
+       WHERE r."RoleName" = @roleName
+       ON CONFLICT DO NOTHING`, [{ name: 'roleName', value: EDITOR_ROLE }]);
+        logger.info('[Seed] Editor role and permissions verified successfully.');
     }
     catch (err) {
-        logger.error('[Seed Error] Failed to seed roles and permissions:', err);
+        logger.error('[Seed Error] Failed to seed role and permissions:', err);
     }
 }
-export async function seedDemoUsers() {
+/**
+ * Removes every account and role left over from the old multi-role
+ * system, so that exactly one login remains.
+ *
+ * Content authored by a retired account is reassigned to the Editor
+ * rather than deleted. The Users foreign keys are ON DELETE SET NULL, so
+ * deleting outright would silently strip the authorship from every
+ * project, media item and workflow entry those accounts created.
+ */
+export async function pruneLegacyAccounts(editorUserId) {
     try {
-        logger.info('[Seed] Checking and seeding default KeNHA user accounts into SQL Server...');
-        await seedRolesAndPermissions();
-        for (const u of DEFAULT_USERS) {
-            const existing = await queryOne('SELECT UserId FROM Users WHERE Email = @email', [{ name: 'email', value: u.email }]);
-            const salt = await bcrypt.genSalt(10);
-            const passwordHash = await bcrypt.hash(u.password, salt);
-            let userId;
-            if (existing) {
-                userId = existing.UserId;
-                // Update password hash and name to ensure they match credentials
-                await execute('UPDATE Users SET FullName = @fullName, PasswordHash = @passwordHash, IsActive = 1, UpdatedAt = SYSUTCDATETIME() WHERE UserId = @userId', [
-                    { name: 'userId', value: userId },
-                    { name: 'fullName', value: u.fullName },
-                    { name: 'passwordHash', value: passwordHash },
-                ]);
-            }
-            else {
-                const insertRes = await execute(`INSERT INTO Users (FullName, Email, PasswordHash, IsActive)
-           OUTPUT INSERTED.UserId
-           VALUES (@fullName, @email, @passwordHash, 1)`, [
-                    { name: 'fullName', value: u.fullName },
-                    { name: 'email', value: u.email },
-                    { name: 'passwordHash', value: passwordHash },
-                ]);
-                userId = insertRes.recordset?.[0]?.UserId;
-            }
-            if (userId) {
-                // Link roles
-                for (const roleName of u.roles) {
-                    const role = await queryOne('SELECT RoleId FROM Roles WHERE RoleName = @roleName', [{ name: 'roleName', value: roleName }]);
-                    if (role) {
-                        const hasRole = await queryOne('SELECT 1 FROM UserRoles WHERE UserId = @userId AND RoleId = @roleId', [
-                            { name: 'userId', value: userId },
-                            { name: 'roleId', value: role.RoleId },
-                        ]);
-                        if (!hasRole) {
-                            await execute('INSERT INTO UserRoles (UserId, RoleId) VALUES (@userId, @roleId)', [
-                                { name: 'userId', value: userId },
-                                { name: 'roleId', value: role.RoleId },
-                            ]);
-                        }
-                    }
+        const stale = await query('SELECT "UserId", "Email" FROM "Users" WHERE "UserId" <> @editorUserId', [{ name: 'editorUserId', value: editorUserId }]);
+        if (stale.length === 0) {
+            logger.info('[Seed] Single-account model verified: only the Editor account exists.');
+        }
+        else {
+            logger.warn(`[Seed] Removing ${stale.length} legacy account(s) and reassigning their content to the Editor...`);
+            // Reassign authorship on every table that points at Users.
+            const reassignments = [
+                ['Projects', ['CreatedBy', 'UpdatedBy', 'ApprovedBy']],
+                ['ProjectMedia', ['UploadedBy', 'ApprovedBy']],
+                ['ProjectUpdates', ['CreatedBy', 'ApprovedBy']],
+                ['ProjectDocuments', ['UploadedBy', 'ApprovedBy']],
+                ['ProjectWorkflow', ['PerformedBy']],
+                ['AuditLogs', ['UserId']],
+            ];
+            for (const [table, columns] of reassignments) {
+                for (const column of columns) {
+                    // Table and column names here are literals from the list above,
+                    // never user input.
+                    await execute(`UPDATE "${table}"
+             SET "${column}" = @editorUserId
+             WHERE "${column}" IS NOT NULL AND "${column}" <> @editorUserId`, [{ name: 'editorUserId', value: editorUserId }]);
                 }
             }
+            // UserRoles cascades from Users, so deleting the user is enough.
+            await execute('DELETE FROM "Users" WHERE "UserId" <> @editorUserId', [
+                { name: 'editorUserId', value: editorUserId },
+            ]);
+            for (const u of stale) {
+                logger.info(`[Seed] Removed legacy account '${u.Email}'.`);
+            }
         }
-        logger.info('[Seed] Successfully verified and seeded all KeNHA admin and user accounts.');
+        // Drop the retired roles themselves (RolePermissions cascades).
+        for (const roleName of RETIRED_ROLES) {
+            const res = await execute('DELETE FROM "Roles" WHERE "RoleName" = @name', [
+                { name: 'name', value: roleName },
+            ]);
+            if ((res.rowsAffected[0] ?? 0) > 0) {
+                logger.info(`[Seed] Removed retired role '${roleName}'.`);
+            }
+        }
     }
     catch (err) {
-        logger.error('[Seed Error] Failed to seed user accounts:', err);
+        logger.error('[Seed Error] Failed to prune legacy accounts:', err);
+    }
+}
+/**
+ * Ensures the Editor account exists with the expected credentials,
+ * then strips out everything else.
+ */
+export async function seedEditorAccount() {
+    try {
+        if (!(await assertSchemaPresent()))
+            return;
+        logger.info('[Seed] Verifying the KeNHA Editor account...');
+        await seedRolesAndPermissions();
+        const u = EDITOR_ACCOUNT;
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(u.password, salt);
+        const upserted = await execute(`INSERT INTO "Users" ("FullName", "Email", "PasswordHash", "IsActive")
+       VALUES (@fullName, @email, @passwordHash, TRUE)
+       ON CONFLICT ("Email") DO UPDATE
+         SET "FullName"     = EXCLUDED."FullName",
+             "PasswordHash" = EXCLUDED."PasswordHash",
+             "IsActive"     = TRUE
+       RETURNING "UserId"`, [
+            { name: 'fullName', value: u.fullName },
+            { name: 'email', value: u.email },
+            { name: 'passwordHash', value: passwordHash },
+        ]);
+        const userId = upserted.recordset?.[0]?.UserId;
+        if (!userId) {
+            logger.error('[Seed Error] Could not resolve the Editor account id; skipping cleanup.');
+            return;
+        }
+        // Bind the Editor role (and only that role) to the account.
+        const role = await queryOne('SELECT "RoleId" FROM "Roles" WHERE "RoleName" = @roleName', [
+            { name: 'roleName', value: EDITOR_ROLE },
+        ]);
+        if (role) {
+            await execute('DELETE FROM "UserRoles" WHERE "UserId" = @userId AND "RoleId" <> @roleId', [
+                { name: 'userId', value: userId },
+                { name: 'roleId', value: role.RoleId },
+            ]);
+            await execute(`INSERT INTO "UserRoles" ("UserId", "RoleId")
+         VALUES (@userId, @roleId)
+         ON CONFLICT DO NOTHING`, [
+                { name: 'userId', value: userId },
+                { name: 'roleId', value: role.RoleId },
+            ]);
+        }
+        await pruneLegacyAccounts(userId);
+        logger.info(`[Seed] Editor account ready: ${u.email}`);
+    }
+    catch (err) {
+        logger.error('[Seed Error] Failed to seed the Editor account:', err);
     }
 }
 export async function seedDemoProjects() {
     try {
-        logger.info('[Seed] Checking and seeding sample KeNHA highway projects into SQL Server...');
+        if (!(await assertSchemaPresent()))
+            return;
+        logger.info('[Seed] Checking and seeding sample KeNHA highway projects...');
         const projectsData = [
             {
                 code: 'KEN-EXP-001',
@@ -369,22 +312,22 @@ export async function seedDemoProjects() {
             },
         ];
         for (const p of projectsData) {
-            const existing = await queryOne('SELECT ProjectId FROM Projects WHERE ProjectCode = @code OR Slug = @slug', [
+            const existing = await queryOne('SELECT "ProjectId" FROM "Projects" WHERE "ProjectCode" = @code OR "Slug" = @slug', [
                 { name: 'code', value: p.code },
                 { name: 'slug', value: p.slug },
             ]);
             if (existing) {
                 // Ensure published status
-                await execute("UPDATE Projects SET PublicationStatus = 'Published', IsPublished = 1 WHERE ProjectId = @id", [{ name: 'id', value: existing.ProjectId }]);
-                // Ensure primary location exists
-                const locExisting = await queryOne('SELECT LocationId FROM ProjectLocations WHERE ProjectId = @projectId', [
-                    { name: 'projectId', value: existing.ProjectId },
-                ]);
+                await execute(`UPDATE "Projects"
+           SET "PublicationStatus" = 'Published', "IsPublished" = TRUE
+           WHERE "ProjectId" = @id`, [{ name: 'id', value: existing.ProjectId }]);
+                // Ensure a primary location exists
+                const locExisting = await queryOne('SELECT "LocationId" FROM "ProjectLocations" WHERE "ProjectId" = @projectId', [{ name: 'projectId', value: existing.ProjectId }]);
                 if (!locExisting) {
-                    await execute(`INSERT INTO ProjectLocations (
-              ProjectId, LocationName, County, SubCounty, Latitude, Longitude, IsPrimaryLocation
+                    await execute(`INSERT INTO "ProjectLocations" (
+              "ProjectId", "LocationName", "County", "SubCounty", "Latitude", "Longitude", "IsPrimaryLocation"
             ) VALUES (
-              @projectId, @name, @county, @subCounty, @lat, @lng, 1
+              @projectId, @name, @county, @subCounty, @lat, @lng, TRUE
             )`, [
                         { name: 'projectId', value: existing.ProjectId },
                         { name: 'name', value: p.name },
@@ -396,15 +339,17 @@ export async function seedDemoProjects() {
                 }
                 continue;
             }
-            const projRes = await execute(`INSERT INTO Projects (
-          ProjectCode, ProjectName, Slug, ShortDescription, FullDescription,
-          ProjectStatus, PublicationStatus, ProjectCost, CurrencyCode, LengthKm, IsFeatured, IsPublished
+            const projRes = await execute(`INSERT INTO "Projects" (
+          "ProjectCode", "ProjectName", "Slug", "ShortDescription", "FullDescription",
+          "ProjectStatus", "PublicationStatus", "ProjectCost", "CurrencyCode", "LengthKm",
+          "IsFeatured", "IsPublished"
         )
-        OUTPUT INSERTED.ProjectId
         VALUES (
           @code, @name, @slug, @shortDesc, @fullDesc,
-          @status, @pubStatus, @cost, 'KES', @length, @isFeatured, @isPublished
-        )`, [
+          @status, @pubStatus, @cost, 'KES', @length,
+          @isFeatured, @isPublished
+        )
+        RETURNING "ProjectId"`, [
                 { name: 'code', value: p.code },
                 { name: 'name', value: p.name },
                 { name: 'slug', value: p.slug },
@@ -414,16 +359,16 @@ export async function seedDemoProjects() {
                 { name: 'pubStatus', value: p.publicationStatus },
                 { name: 'cost', value: p.cost },
                 { name: 'length', value: p.lengthKm },
-                { name: 'isFeatured', value: p.isFeatured },
-                { name: 'isPublished', value: p.isPublished },
+                { name: 'isFeatured', value: Boolean(p.isFeatured) },
+                { name: 'isPublished', value: Boolean(p.isPublished) },
             ]);
             const projectId = projRes.recordset?.[0]?.ProjectId;
             if (projectId) {
-                await execute(`INSERT INTO ProjectLocations (
-            ProjectId, LocationName, County, SubCounty, Latitude, Longitude, IsPrimaryLocation
+                await execute(`INSERT INTO "ProjectLocations" (
+            "ProjectId", "LocationName", "County", "SubCounty", "Latitude", "Longitude", "IsPrimaryLocation"
           )
           VALUES (
-            @projectId, @locName, @county, @subCounty, @lat, @lng, 1
+            @projectId, @locName, @county, @subCounty, @lat, @lng, TRUE
           )`, [
                     { name: 'projectId', value: projectId },
                     { name: 'locName', value: p.name },
@@ -432,7 +377,9 @@ export async function seedDemoProjects() {
                     { name: 'lat', value: p.lat },
                     { name: 'lng', value: p.lng },
                 ]);
-                await execute('INSERT INTO VRProjectSettings (ProjectId) VALUES (@projectId)', [{ name: 'projectId', value: projectId }]);
+                await execute(`INSERT INTO "VRProjectSettings" ("ProjectId")
+           VALUES (@projectId)
+           ON CONFLICT ("ProjectId") DO NOTHING`, [{ name: 'projectId', value: projectId }]);
             }
         }
         logger.info('[Seed] Successfully verified and seeded KeNHA highway projects with GPS coordinates.');

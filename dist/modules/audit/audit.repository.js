@@ -5,7 +5,7 @@ export class AuditRepository {
         try {
             const oldValStr = oldValues ? JSON.stringify(oldValues) : null;
             const newValStr = newValues ? JSON.stringify(newValues) : null;
-            await execute(`INSERT INTO AuditLogs (UserId, Action, EntityName, EntityId, OldValues, NewValues, IpAddress, UserAgent)
+            await execute(`INSERT INTO "AuditLogs" ("UserId", "Action", "EntityName", "EntityId", "OldValues", "NewValues", "IpAddress", "UserAgent")
          VALUES (@userId, @action, @entityName, @entityId, @oldValues, @newValues, @ipAddress, @userAgent)`, [
                 { name: 'userId', value: userId },
                 { name: 'action', value: action },
@@ -23,7 +23,7 @@ export class AuditRepository {
     }
     static async logWorkflow(projectId, action, fromStatus, toStatus, comment, performedBy) {
         try {
-            await execute(`INSERT INTO ProjectWorkflow (ProjectId, Action, FromStatus, ToStatus, Comment, PerformedBy)
+            await execute(`INSERT INTO "ProjectWorkflow" ("ProjectId", "Action", "FromStatus", "ToStatus", "Comment", "PerformedBy")
          VALUES (@projectId, @action, @fromStatus, @toStatus, @comment, @performedBy)`, [
                 { name: 'projectId', value: projectId },
                 { name: 'action', value: action },

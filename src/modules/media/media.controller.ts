@@ -30,6 +30,16 @@ export class MediaController {
     )
   }
 
+  public static async updateMedia(c: Context) {
+    const paramId = c.req.param('mediaId') || ''
+    const mediaId = parseInt(paramId, 10)
+    const body = c.get('validatedBody')
+    const media = await MediaService.updateMedia(mediaId, body)
+    return c.json(
+      createSuccessResponse(media, 'Media item updated', undefined, c.get('requestId') as string | undefined)
+    )
+  }
+
   public static async deleteMedia(c: Context) {
     const paramId = c.req.param('mediaId') || ''
     const mediaId = parseInt(paramId, 10)

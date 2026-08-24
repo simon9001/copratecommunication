@@ -2,25 +2,25 @@ import { execute, query, queryOne } from '../../db/query.js';
 import { NotFoundError } from '../../errors/AppError.js';
 export class UpdateRepository {
     static async findUpdatesByProjectId(projectId) {
-        return query('SELECT * FROM ProjectUpdates WHERE ProjectId = @projectId ORDER BY UpdateDate DESC', [
-            { name: 'projectId', value: projectId },
-        ]);
+        return query('SELECT * FROM "ProjectUpdates" WHERE "ProjectId" = @projectId ORDER BY "UpdateDate" DESC', [{ name: 'projectId', value: projectId }]);
     }
     static async findUpdateById(updateId) {
-        return queryOne('SELECT * FROM ProjectUpdates WHERE UpdateId = @updateId', [{ name: 'updateId', value: updateId }]);
+        return queryOne('SELECT * FROM "ProjectUpdates" WHERE "UpdateId" = @updateId', [
+            { name: 'updateId', value: updateId },
+        ]);
     }
     static async createUpdate(dto, userId) {
-        const res = await execute(`INSERT INTO ProjectUpdates (
-        ProjectId, Title, Content, ProgressPercentage, UpdateDate, PublicationStatus, CreatedBy
+        const res = await execute(`INSERT INTO "ProjectUpdates" (
+        "ProjectId", "Title", "Content", "ProgressPercentage", "UpdateDate", "PublicationStatus", "CreatedBy"
       )
-      OUTPUT INSERTED.*
       VALUES (
         @projectId, @title, @content, @progressPercentage, @updateDate, @publicationStatus, @createdBy
-      )`, [
+      )
+      RETURNING *`, [
             { name: 'projectId', value: dto.projectId },
             { name: 'title', value: dto.title },
             { name: 'content', value: dto.content },
-            { name: 'progressPercentage', value: dto.progressPercentage || null },
+            { name: 'progressPercentage', value: dto.progressPercentage ?? null },
             { name: 'updateDate', value: dto.updateDate },
             { name: 'publicationStatus', value: dto.publicationStatus },
             { name: 'createdBy', value: userId },
@@ -31,14 +31,13 @@ export class UpdateRepository {
         const existing = await this.findUpdateById(updateId);
         if (!existing)
             throw new NotFoundError(`Project Update with ID ${updateId} not found`);
-        await execute(`UPDATE ProjectUpdates
-       SET Title = ISNULL(@title, Title),
-           Content = ISNULL(@content, Content),
-           ProgressPercentage = ISNULL(@progressPercentage, ProgressPercentage),
-           UpdateDate = ISNULL(@updateDate, UpdateDate),
-           PublicationStatus = ISNULL(@publicationStatus, PublicationStatus),
-           UpdatedAt = SYSUTCDATETIME()
-       WHERE UpdateId = @updateId`, [
+        await execute(`UPDATE "ProjectUpdates"
+       SET "Title"              = COALESCE(@title::text, "Title"),
+           "Content"            = COALESCE(@content::text, "Content"),
+           "ProgressPercentage" = COALESCE(@progressPercentage::numeric, "ProgressPercentage"),
+           "UpdateDate"         = COALESCE(@updateDate::date, "UpdateDate"),
+           "PublicationStatus"  = COALESCE(@publicationStatus::text, "PublicationStatus")
+       WHERE "UpdateId" = @updateId`, [
             { name: 'updateId', value: updateId },
             { name: 'title', value: dto.title || null },
             { name: 'content', value: dto.content || null },
@@ -52,31 +51,29 @@ export class UpdateRepository {
         const existing = await this.findUpdateById(updateId);
         if (!existing)
             throw new NotFoundError(`Project Update with ID ${updateId} not found`);
-        await execute('DELETE FROM ProjectUpdates WHERE UpdateId = @updateId', [{ name: 'updateId', value: updateId }]);
+        await execute('DELETE FROM "ProjectUpdates" WHERE "UpdateId" = @updateId', [{ name: 'updateId', value: updateId }]);
     }
     static async findMilestonesByProjectId(projectId) {
-        return query('SELECT * FROM ProjectMilestones WHERE ProjectId = @projectId ORDER BY MilestoneDate ASC', [
-            { name: 'projectId', value: projectId },
-        ]);
+        return query('SELECT * FROM "ProjectMilestones" WHERE "ProjectId" = @projectId ORDER BY "MilestoneDate" ASC', [{ name: 'projectId', value: projectId }]);
     }
     static async findMilestoneById(milestoneId) {
-        return queryOne('SELECT * FROM ProjectMilestones WHERE MilestoneId = @milestoneId', [
+        return queryOne('SELECT * FROM "ProjectMilestones" WHERE "MilestoneId" = @milestoneId', [
             { name: 'milestoneId', value: milestoneId },
         ]);
     }
     static async createMilestone(dto) {
-        const res = await execute(`INSERT INTO ProjectMilestones (
-        ProjectId, Title, Description, MilestoneDate, CompletionPercentage, Status
+        const res = await execute(`INSERT INTO "ProjectMilestones" (
+        "ProjectId", "Title", "Description", "MilestoneDate", "CompletionPercentage", "Status"
       )
-      OUTPUT INSERTED.*
       VALUES (
         @projectId, @title, @description, @milestoneDate, @completionPercentage, @status
-      )`, [
+      )
+      RETURNING *`, [
             { name: 'projectId', value: dto.projectId },
             { name: 'title', value: dto.title },
             { name: 'description', value: dto.description || null },
             { name: 'milestoneDate', value: dto.milestoneDate || null },
-            { name: 'completionPercentage', value: dto.completionPercentage || null },
+            { name: 'completionPercentage', value: dto.completionPercentage ?? null },
             { name: 'status', value: dto.status },
         ]);
         return res.recordset?.[0];
@@ -85,13 +82,13 @@ export class UpdateRepository {
         const existing = await this.findMilestoneById(milestoneId);
         if (!existing)
             throw new NotFoundError(`Project Milestone with ID ${milestoneId} not found`);
-        await execute(`UPDATE ProjectMilestones
-       SET Title = ISNULL(@title, Title),
-           Description = ISNULL(@description, Description),
-           MilestoneDate = ISNULL(@milestoneDate, MilestoneDate),
-           CompletionPercentage = ISNULL(@completionPercentage, CompletionPercentage),
-           Status = ISNULL(@status, Status)
-       WHERE MilestoneId = @milestoneId`, [
+        await execute(`UPDATE "ProjectMilestones"
+       SET "Title"                = COALESCE(@title::text, "Title"),
+           "Description"          = COALESCE(@description::text, "Description"),
+           "MilestoneDate"        = COALESCE(@milestoneDate::date, "MilestoneDate"),
+           "CompletionPercentage" = COALESCE(@completionPercentage::numeric, "CompletionPercentage"),
+           "Status"               = COALESCE(@status::text, "Status")
+       WHERE "MilestoneId" = @milestoneId`, [
             { name: 'milestoneId', value: milestoneId },
             { name: 'title', value: dto.title || null },
             { name: 'description', value: dto.description || null },
@@ -105,6 +102,8 @@ export class UpdateRepository {
         const existing = await this.findMilestoneById(milestoneId);
         if (!existing)
             throw new NotFoundError(`Project Milestone with ID ${milestoneId} not found`);
-        await execute('DELETE FROM ProjectMilestones WHERE MilestoneId = @milestoneId', [{ name: 'milestoneId', value: milestoneId }]);
+        await execute('DELETE FROM "ProjectMilestones" WHERE "MilestoneId" = @milestoneId', [
+            { name: 'milestoneId', value: milestoneId },
+        ]);
     }
 }

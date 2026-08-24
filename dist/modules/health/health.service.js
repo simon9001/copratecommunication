@@ -1,10 +1,12 @@
 import { checkDbHealth } from '../../db/connection.js';
 import { CloudinaryService } from '../../services/cloudinary.service.js';
 import { PrometheusService } from '../../services/prometheus.service.js';
+import { checkSupabaseHealth } from '../../services/supabase.service.js';
 export class HealthService {
     static async getHealthStatus() {
         const dbHealth = await checkDbHealth();
         const cloudinaryHealth = await CloudinaryService.checkCloudinaryHealth();
+        const supabaseHealth = await checkSupabaseHealth();
         const uptime = process.uptime();
         const memoryUsage = process.memoryUsage();
         // Update Prometheus Gauges
@@ -21,6 +23,12 @@ export class HealthService {
                 services: {
                     database: dbHealth,
                     cloudinary: cloudinaryHealth,
+                    // This endpoint is public, so only the status and latency are
+                    // reported here — never the key, and never the project ref.
+                    supabaseStorage: {
+                        status: supabaseHealth.status,
+                        latencyMs: supabaseHealth.latencyMs,
+                    },
                 },
                 memory: {
                     rssMb: Math.round(memoryUsage.rss / 1024 / 1024),

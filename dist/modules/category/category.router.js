@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { CategoryController } from './category.controller.js';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
-import { requirePermission } from '../../middleware/permission.middleware.js';
+import { requireEditor } from '../../middleware/permission.middleware.js';
 import { z } from 'zod';
 import { validateBody } from '../../middleware/validate.middleware.js';
 export const categoryRouter = new Hono();
@@ -11,4 +11,4 @@ const createCategorySchema = z.object({
     iconName: z.string().max(100).optional(),
 });
 categoryRouter.get('/', CategoryController.listCategories);
-categoryRouter.post('/', authMiddleware, requirePermission('ROLE_MANAGE'), validateBody(createCategorySchema), CategoryController.createCategory);
+categoryRouter.post('/', authMiddleware, requireEditor, validateBody(createCategorySchema), CategoryController.createCategory);

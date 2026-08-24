@@ -11,6 +11,13 @@ export class MediaController {
         const media = await MediaService.createMediaRecord(body, user.userId);
         return c.json(createSuccessResponse(media, 'Project media uploaded', undefined, c.get('requestId')), 201);
     }
+    static async updateMedia(c) {
+        const paramId = c.req.param('mediaId') || '';
+        const mediaId = parseInt(paramId, 10);
+        const body = c.get('validatedBody');
+        const media = await MediaService.updateMedia(mediaId, body);
+        return c.json(createSuccessResponse(media, 'Media item updated', undefined, c.get('requestId')));
+    }
     static async deleteMedia(c) {
         const paramId = c.req.param('mediaId') || '';
         const mediaId = parseInt(paramId, 10);
@@ -26,6 +33,6 @@ export class MediaController {
         const user = c.get('user');
         const body = c.get('validatedBody');
         const result = await MediaService.uploadToCloudinaryAndSave(body.projectId, body.mediaType, body.fileData, body.title, body.description, body.isFeatured || false, user.userId);
-        return c.json(createSuccessResponse(result, 'Media uploaded to Cloudinary and registered in SQL Server', undefined, c.get('requestId')), 201);
+        return c.json(createSuccessResponse(result, 'Media uploaded to Cloudinary and registered in the database', undefined, c.get('requestId')), 201);
     }
 }

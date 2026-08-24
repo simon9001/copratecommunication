@@ -5,30 +5,32 @@ import { MediaController } from '../media/media.controller.js';
 import { UpdateController } from '../update/update.controller.js';
 import { VRController } from '../vr/vr.controller.js';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
-import { requirePermission } from '../../middleware/permission.middleware.js';
+import { requireEditor } from '../../middleware/permission.middleware.js';
 import { validateBody, validateQuery } from '../../middleware/validate.middleware.js';
 import { createProjectSchema, projectQuerySchema, updateProjectSchema, updateProjectStatusSchema, } from './project.schema.js';
 import { createLocationSchema } from '../location/location.schema.js';
-import { createMediaSchema } from '../media/media.schema.js';
+import { createMediaSchema, updateMediaSchema } from '../media/media.schema.js';
 import { createMilestoneSchema, createProjectUpdateSchema } from '../update/update.schema.js';
 export const projectRouter = new Hono();
 // Projects
 projectRouter.get('/', validateQuery(projectQuerySchema), ProjectController.listProjects);
 projectRouter.get('/:id', ProjectController.getProjectById);
 projectRouter.get('/slug/:slug', ProjectController.getProjectBySlug);
-projectRouter.post('/', authMiddleware, requirePermission('PROJECT_CREATE'), validateBody(createProjectSchema), ProjectController.createProject);
-projectRouter.put('/:id', authMiddleware, requirePermission('PROJECT_EDIT'), validateBody(updateProjectSchema), ProjectController.updateProject);
-projectRouter.patch('/:id/status', authMiddleware, requirePermission('PROJECT_APPROVE'), validateBody(updateProjectStatusSchema), ProjectController.updatePublicationStatus);
-projectRouter.delete('/:id', authMiddleware, requirePermission('PROJECT_DELETE'), ProjectController.deleteProject);
+projectRouter.post('/', authMiddleware, requireEditor, validateBody(createProjectSchema), ProjectController.createProject);
+projectRouter.put('/:id', authMiddleware, requireEditor, validateBody(updateProjectSchema), ProjectController.updateProject);
+projectRouter.patch('/:id/status', authMiddleware, requireEditor, validateBody(updateProjectStatusSchema), ProjectController.updatePublicationStatus);
+projectRouter.delete('/:id', authMiddleware, requireEditor, ProjectController.deleteProject);
 // Locations
-projectRouter.post('/:projectId/locations', authMiddleware, requirePermission('PROJECT_EDIT'), validateBody(createLocationSchema), LocationController.createLocation);
-projectRouter.delete('/:projectId/locations/:locationId', authMiddleware, requirePermission('PROJECT_EDIT'), LocationController.deleteLocation);
+projectRouter.post('/:projectId/locations', authMiddleware, requireEditor, validateBody(createLocationSchema), LocationController.createLocation);
+projectRouter.delete('/:projectId/locations/:locationId', authMiddleware, requireEditor, LocationController.deleteLocation);
 // Media
-projectRouter.post('/:projectId/media', authMiddleware, requirePermission('MEDIA_UPLOAD'), validateBody(createMediaSchema), MediaController.createMedia);
-projectRouter.delete('/:projectId/media/:mediaId', authMiddleware, requirePermission('MEDIA_DELETE'), MediaController.deleteMedia);
+projectRouter.post('/:projectId/media', authMiddleware, requireEditor, validateBody(createMediaSchema), MediaController.createMedia);
+projectRouter.put('/:projectId/media/:mediaId', authMiddleware, requireEditor, validateBody(updateMediaSchema), MediaController.updateMedia);
+projectRouter.patch('/:projectId/media/:mediaId', authMiddleware, requireEditor, validateBody(updateMediaSchema), MediaController.updateMedia);
+projectRouter.delete('/:projectId/media/:mediaId', authMiddleware, requireEditor, MediaController.deleteMedia);
 // Updates & Milestones
-projectRouter.post('/:projectId/updates', authMiddleware, requirePermission('UPDATE_CREATE'), validateBody(createProjectUpdateSchema), UpdateController.createUpdate);
-projectRouter.post('/:projectId/milestones', authMiddleware, requirePermission('PROJECT_EDIT'), validateBody(createMilestoneSchema), UpdateController.createMilestone);
+projectRouter.post('/:projectId/updates', authMiddleware, requireEditor, validateBody(createProjectUpdateSchema), UpdateController.createUpdate);
+projectRouter.post('/:projectId/milestones', authMiddleware, requireEditor, validateBody(createMilestoneSchema), UpdateController.createMilestone);
 // VR Settings & Hotspots
 projectRouter.get('/:projectId/vr-settings', VRController.getVRDetails);
-projectRouter.put('/:projectId/vr-settings', authMiddleware, requirePermission('PROJECT_EDIT'), VRController.updateVRSettings);
+projectRouter.put('/:projectId/vr-settings', authMiddleware, requireEditor, VRController.updateVRSettings);

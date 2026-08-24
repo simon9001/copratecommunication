@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
 import { MediaController } from './media.controller.js';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
-import { requirePermission } from '../../middleware/permission.middleware.js';
+import { requireEditor } from '../../middleware/permission.middleware.js';
 import { z } from 'zod';
 import { validateBody } from '../../middleware/validate.middleware.js';
-import { createMediaSchema } from './media.schema.js';
+import { createMediaSchema, updateMediaSchema } from './media.schema.js';
 export const mediaRouter = new Hono();
 const uploadServerFileSchema = z.object({
     projectId: z.number().int(),
@@ -15,7 +15,9 @@ const uploadServerFileSchema = z.object({
     isFeatured: z.boolean().default(false),
 });
 mediaRouter.get('/', MediaController.listAllMedia);
-mediaRouter.post('/', authMiddleware, requirePermission('MEDIA_UPLOAD'), validateBody(createMediaSchema), MediaController.createMedia);
-mediaRouter.delete('/:mediaId', authMiddleware, requirePermission('MEDIA_DELETE'), MediaController.deleteMedia);
-mediaRouter.get('/signature', authMiddleware, requirePermission('MEDIA_UPLOAD'), MediaController.getUploadSignature);
-mediaRouter.post('/upload', authMiddleware, requirePermission('MEDIA_UPLOAD'), validateBody(uploadServerFileSchema), MediaController.uploadToCloudinary);
+mediaRouter.post('/', authMiddleware, requireEditor, validateBody(createMediaSchema), MediaController.createMedia);
+mediaRouter.put('/:mediaId', authMiddleware, requireEditor, validateBody(updateMediaSchema), MediaController.updateMedia);
+mediaRouter.patch('/:mediaId', authMiddleware, requireEditor, validateBody(updateMediaSchema), MediaController.updateMedia);
+mediaRouter.delete('/:mediaId', authMiddleware, requireEditor, MediaController.deleteMedia);
+mediaRouter.get('/signature', authMiddleware, requireEditor, MediaController.getUploadSignature);
+mediaRouter.post('/upload', authMiddleware, requireEditor, validateBody(uploadServerFileSchema), MediaController.uploadToCloudinary);

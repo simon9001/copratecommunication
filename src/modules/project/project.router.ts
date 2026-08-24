@@ -15,7 +15,7 @@ import {
   updateProjectStatusSchema,
 } from './project.schema.js'
 import { createLocationSchema } from '../location/location.schema.js'
-import { createMediaSchema } from '../media/media.schema.js'
+import { createMediaSchema, updateMediaSchema } from '../media/media.schema.js'
 import { createMilestoneSchema, createProjectUpdateSchema } from '../update/update.schema.js'
 
 export const projectRouter = new Hono<AppEnv>()
@@ -35,6 +35,8 @@ projectRouter.delete('/:projectId/locations/:locationId', authMiddleware, requir
 
 // Media
 projectRouter.post('/:projectId/media', authMiddleware, requireEditor, validateBody(createMediaSchema), MediaController.createMedia)
+projectRouter.put('/:projectId/media/:mediaId', authMiddleware, requireEditor, validateBody(updateMediaSchema), MediaController.updateMedia)
+projectRouter.patch('/:projectId/media/:mediaId', authMiddleware, requireEditor, validateBody(updateMediaSchema), MediaController.updateMedia)
 projectRouter.delete('/:projectId/media/:mediaId', authMiddleware, requireEditor, MediaController.deleteMedia)
 
 // Updates & Milestones

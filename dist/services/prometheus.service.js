@@ -23,7 +23,7 @@ export class PrometheusService {
     // Custom Database Query Duration Histogram
     static dbQueryDurationHistogram = new Histogram({
         name: 'kenha_vr_db_query_duration_seconds',
-        help: 'Duration of SQL Server database queries in seconds',
+        help: 'Duration of database queries in seconds',
         labelNames: ['operation'],
         buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2],
         registers: [PrometheusService.registry],
@@ -31,7 +31,7 @@ export class PrometheusService {
     // Database Connection Status Gauge (1 = healthy, 0 = unhealthy)
     static dbConnectionGauge = new Gauge({
         name: 'kenha_vr_db_connection_status',
-        help: 'Status of SQL Server Database connection (1 = healthy, 0 = unhealthy)',
+        help: 'Status of the Postgres connection (1 = healthy, 0 = unhealthy)',
         registers: [PrometheusService.registry],
     });
     // Cloudinary Connection Status Gauge (1 = connected, 0 = disconnected)

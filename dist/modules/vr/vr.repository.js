@@ -1,47 +1,46 @@
 import { execute, query, queryOne } from '../../db/query.js';
 export class VRRepository {
     static async getSettings(projectId) {
-        return queryOne('SELECT * FROM VRProjectSettings WHERE ProjectId = @projectId', [
+        return queryOne('SELECT * FROM "VRProjectSettings" WHERE "ProjectId" = @projectId', [
             { name: 'projectId', value: projectId },
         ]);
     }
     static async updateSettings(projectId, settings) {
-        await execute(`UPDATE VRProjectSettings
-       SET MarkerColor = ISNULL(@markerColor, MarkerColor),
-           MarkerSize = ISNULL(@markerSize, MarkerSize),
-           FlyToAltitude = ISNULL(@flyToAltitude, FlyToAltitude),
-           FlyToDurationSeconds = ISNULL(@flyToDurationSeconds, FlyToDurationSeconds),
-           PanelPosition = ISNULL(@panelPosition, PanelPosition),
-           AutoPlayFeaturedVideo = ISNULL(@autoPlayFeaturedVideo, AutoPlayFeaturedVideo),
-           EnableVR = ISNULL(@enableVR, EnableVR),
-           EnableFullscreenVideo = ISNULL(@enableFullscreenVideo, EnableFullscreenVideo),
-           UpdatedAt = SYSUTCDATETIME()
-       WHERE ProjectId = @projectId`, [
+        await execute(`UPDATE "VRProjectSettings"
+       SET "MarkerColor"           = COALESCE(@markerColor::text, "MarkerColor"),
+           "MarkerSize"            = COALESCE(@markerSize::numeric, "MarkerSize"),
+           "FlyToAltitude"         = COALESCE(@flyToAltitude::numeric, "FlyToAltitude"),
+           "FlyToDurationSeconds"  = COALESCE(@flyToDurationSeconds::numeric, "FlyToDurationSeconds"),
+           "PanelPosition"         = COALESCE(@panelPosition::text, "PanelPosition"),
+           "AutoPlayFeaturedVideo" = COALESCE(@autoPlayFeaturedVideo::boolean, "AutoPlayFeaturedVideo"),
+           "EnableVR"              = COALESCE(@enableVR::boolean, "EnableVR"),
+           "EnableFullscreenVideo" = COALESCE(@enableFullscreenVideo::boolean, "EnableFullscreenVideo")
+       WHERE "ProjectId" = @projectId`, [
             { name: 'projectId', value: projectId },
             { name: 'markerColor', value: settings.MarkerColor || null },
             { name: 'markerSize', value: settings.MarkerSize ?? null },
             { name: 'flyToAltitude', value: settings.FlyToAltitude ?? null },
             { name: 'flyToDurationSeconds', value: settings.FlyToDurationSeconds ?? null },
             { name: 'panelPosition', value: settings.PanelPosition || null },
-            { name: 'autoPlayFeaturedVideo', value: settings.AutoPlayFeaturedVideo !== undefined ? (settings.AutoPlayFeaturedVideo ? 1 : 0) : null },
-            { name: 'enableVR', value: settings.EnableVR !== undefined ? (settings.EnableVR ? 1 : 0) : null },
-            { name: 'enableFullscreenVideo', value: settings.EnableFullscreenVideo !== undefined ? (settings.EnableFullscreenVideo ? 1 : 0) : null },
+            { name: 'autoPlayFeaturedVideo', value: settings.AutoPlayFeaturedVideo ?? null },
+            { name: 'enableVR', value: settings.EnableVR ?? null },
+            { name: 'enableFullscreenVideo', value: settings.EnableFullscreenVideo ?? null },
         ]);
         return (await this.getSettings(projectId));
     }
     static async getHotspots(projectId) {
-        return query('SELECT * FROM VRHotspots WHERE ProjectId = @projectId AND IsActive = 1', [
+        return query('SELECT * FROM "VRHotspots" WHERE "ProjectId" = @projectId AND "IsActive" = TRUE', [
             { name: 'projectId', value: projectId },
         ]);
     }
     static async createHotspot(hotspot) {
-        const res = await execute(`INSERT INTO VRHotspots (
-        ProjectId, Title, Description, PositionX, PositionY, PositionZ, ActionType, TargetMediaId
+        const res = await execute(`INSERT INTO "VRHotspots" (
+        "ProjectId", "Title", "Description", "PositionX", "PositionY", "PositionZ", "ActionType", "TargetMediaId"
       )
-      OUTPUT INSERTED.*
       VALUES (
         @projectId, @title, @description, @positionX, @positionY, @positionZ, @actionType, @targetMediaId
-      )`, [
+      )
+      RETURNING *`, [
             { name: 'projectId', value: hotspot.ProjectId },
             { name: 'title', value: hotspot.Title },
             { name: 'description', value: hotspot.Description || null },

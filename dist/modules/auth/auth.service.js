@@ -2,29 +2,6 @@ import { AuthService as JWTAuthService } from '../../services/auth.service.js';
 import { AuthRepository } from './auth.repository.js';
 import { UnauthorizedError } from '../../errors/AppError.js';
 export class AuthService {
-    static async register(dto) {
-        const passwordHash = await JWTAuthService.hashPassword(dto.password);
-        const user = await AuthRepository.createUser(dto, passwordHash);
-        const roles = await AuthRepository.getUserRoles(user.UserId);
-        const permissions = await AuthRepository.getUserPermissions(user.UserId);
-        const token = JWTAuthService.generateToken({
-            userId: user.UserId,
-            email: user.Email,
-            fullName: user.FullName,
-            roles,
-            permissions,
-        });
-        return {
-            user: {
-                userId: user.UserId,
-                fullName: user.FullName,
-                email: user.Email,
-                roles,
-                permissions,
-            },
-            token,
-        };
-    }
     static async login(dto) {
         const user = await AuthRepository.findByEmail(dto.email);
         if (!user || !user.IsActive) {

@@ -1,47 +1,23 @@
 import { createMiddleware } from 'hono/factory';
 import { ForbiddenError, UnauthorizedError } from '../errors/AppError.js';
-export function requirePermission(requiredPermission) {
-    return createMiddleware(async (c, next) => {
-        const user = c.get('user');
-        if (!user) {
-            throw new UnauthorizedError('User authentication required');
-        }
-        const isAdmin = user.roles &&
-            user.roles.some((r) => {
-                const lower = (r || '').toLowerCase();
-                return (lower.includes('admin') ||
-                    lower.includes('super') ||
-                    lower.includes('manager'));
-            });
-        // Super Administrator and Admin/Manager roles bypass individual permission checks
-        if (isAdmin) {
-            return await next();
-        }
-        if (!user.permissions || !user.permissions.includes(requiredPermission)) {
-            throw new ForbiddenError(`Permission denied: Requires '${requiredPermission}' permission to access this resource`);
-        }
-        await next();
-    });
-}
-export function requireRole(requiredRole) {
-    return createMiddleware(async (c, next) => {
-        const user = c.get('user');
-        if (!user) {
-            throw new UnauthorizedError('User authentication required');
-        }
-        const isAdmin = user.roles &&
-            user.roles.some((r) => {
-                const lower = (r || '').toLowerCase();
-                return (lower.includes('admin') ||
-                    lower.includes('super') ||
-                    lower.includes('manager'));
-            });
-        if (isAdmin) {
-            return await next();
-        }
-        if (!user.roles || !user.roles.includes(requiredRole)) {
-            throw new ForbiddenError(`Permission denied: Requires '${requiredRole}' role`);
-        }
-        await next();
-    });
-}
+import { EDITOR_ROLE } from '../db/seed.js';
+/**
+ * The system has a single authenticated role: Editor.
+ *
+ * Anything that is not public is Editor-only, so authorisation is one
+ * question — "is this the Editor?" — rather than a permission matrix.
+ * The previous implementation granted a blanket bypass to any role whose
+ * name merely *contained* "admin", "super" or "manager", which is exactly
+ * the kind of check that quietly becomes a hole. This is an exact match.
+ */
+export const requireEditor = createMiddleware(async (c, next) => {
+    const user = c.get('user');
+    if (!user) {
+        throw new UnauthorizedError('User authentication required');
+    }
+    const isEditor = Array.isArray(user.roles) && user.roles.includes(EDITOR_ROLE);
+    if (!isEditor) {
+        throw new ForbiddenError('This action is restricted to the KeNHA Editor account');
+    }
+    await next();
+});

@@ -7,15 +7,16 @@ import { loggerMiddleware } from './middleware/logger.middleware.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { notFoundHandler } from './middleware/notFound.middleware.js';
 import { apiV1Router } from './routes/index.js';
-import { closeDbPool, checkDbHealth } from './db/connection.js';
+import { closeDbPool, checkDbHealth, warnIfRlsBlocksAccess } from './db/connection.js';
 import { CloudinaryService } from './services/cloudinary.service.js';
 import { HealthController } from './modules/health/health.controller.js';
 import { logger } from './services/logger.service.js';
-import { seedDemoProjects, seedDemoUsers } from './db/seed.js';
+import { seedDemoProjects, seedEditorAccount } from './db/seed.js';
+import { validateSupabaseConfigAtStartup, checkSupabaseHealth } from './services/supabase.service.js';
 const app = new Hono();
 // Enable CORS for frontend integration
 app.use('*', cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: ['http://localhost:5173', 'https://copratecommunicatrion.netlify.app'],
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
     credentials: true,
@@ -56,13 +57,26 @@ serve({
     const dbStatus = await checkDbHealth();
     const cloudinaryStatus = await CloudinaryService.checkCloudinaryHealth();
     if (dbStatus.status === 'healthy') {
-        logger.info(`✅ [Database] SQL Server connected successfully (${dbStatus.latencyMs}ms)`);
-        // Seed default accounts and sample projects
-        await seedDemoUsers();
+        logger.info(`✅ [Database] Postgres connected successfully (${dbStatus.latencyMs}ms)`);
+        // RLS hides rows silently rather than erroring, so confirm this
+        // connection can actually see them before trusting anything below.
+        await warnIfRlsBlocksAccess();
+        // Seed the single Editor account and sample projects
+        await seedEditorAccount();
         await seedDemoProjects();
     }
     else {
-        logger.warn(`⚠️ [Database Alert] SQL Server health probe degraded: ${dbStatus.error}`);
+        logger.warn(`⚠️ [Database Alert] Postgres health probe degraded: ${dbStatus.error}`);
+    }
+    // Supabase Storage / admin API — optional, and separate from the
+    // database connection above.
+    validateSupabaseConfigAtStartup();
+    const supabaseStatus = await checkSupabaseHealth();
+    if (supabaseStatus.status === 'connected') {
+        logger.info(`✅ [Supabase] Storage API reachable for project '${supabaseStatus.projectRef}' (${supabaseStatus.latencyMs}ms)`);
+    }
+    else if (supabaseStatus.status === 'disconnected') {
+        logger.warn(`⚠️ [Supabase Alert] Service role key probe failed: ${supabaseStatus.error}`);
     }
     if (cloudinaryStatus.status === 'connected') {
         logger.info(`✅ [Cloudinary] Cloudinary API connected successfully to '${cloudinaryStatus.cloudName}' (${cloudinaryStatus.latencyMs}ms)`);
