@@ -31,24 +31,26 @@ export interface VRHotspotRow {
 
 export class VRRepository {
   public static async getSettings(projectId: number): Promise<VRProjectSettingsRow | null> {
-    return queryOne<VRProjectSettingsRow>('SELECT * FROM VRProjectSettings WHERE ProjectId = @projectId', [
+    return queryOne<VRProjectSettingsRow>('SELECT * FROM "VRProjectSettings" WHERE "ProjectId" = @projectId', [
       { name: 'projectId', value: projectId },
     ])
   }
 
-  public static async updateSettings(projectId: number, settings: Partial<VRProjectSettingsRow>): Promise<VRProjectSettingsRow> {
+  public static async updateSettings(
+    projectId: number,
+    settings: Partial<VRProjectSettingsRow>
+  ): Promise<VRProjectSettingsRow> {
     await execute(
-      `UPDATE VRProjectSettings
-       SET MarkerColor = ISNULL(@markerColor, MarkerColor),
-           MarkerSize = ISNULL(@markerSize, MarkerSize),
-           FlyToAltitude = ISNULL(@flyToAltitude, FlyToAltitude),
-           FlyToDurationSeconds = ISNULL(@flyToDurationSeconds, FlyToDurationSeconds),
-           PanelPosition = ISNULL(@panelPosition, PanelPosition),
-           AutoPlayFeaturedVideo = ISNULL(@autoPlayFeaturedVideo, AutoPlayFeaturedVideo),
-           EnableVR = ISNULL(@enableVR, EnableVR),
-           EnableFullscreenVideo = ISNULL(@enableFullscreenVideo, EnableFullscreenVideo),
-           UpdatedAt = SYSUTCDATETIME()
-       WHERE ProjectId = @projectId`,
+      `UPDATE "VRProjectSettings"
+       SET "MarkerColor"           = COALESCE(@markerColor::text, "MarkerColor"),
+           "MarkerSize"            = COALESCE(@markerSize::numeric, "MarkerSize"),
+           "FlyToAltitude"         = COALESCE(@flyToAltitude::numeric, "FlyToAltitude"),
+           "FlyToDurationSeconds"  = COALESCE(@flyToDurationSeconds::numeric, "FlyToDurationSeconds"),
+           "PanelPosition"         = COALESCE(@panelPosition::text, "PanelPosition"),
+           "AutoPlayFeaturedVideo" = COALESCE(@autoPlayFeaturedVideo::boolean, "AutoPlayFeaturedVideo"),
+           "EnableVR"              = COALESCE(@enableVR::boolean, "EnableVR"),
+           "EnableFullscreenVideo" = COALESCE(@enableFullscreenVideo::boolean, "EnableFullscreenVideo")
+       WHERE "ProjectId" = @projectId`,
       [
         { name: 'projectId', value: projectId },
         { name: 'markerColor', value: settings.MarkerColor || null },
@@ -56,9 +58,9 @@ export class VRRepository {
         { name: 'flyToAltitude', value: settings.FlyToAltitude ?? null },
         { name: 'flyToDurationSeconds', value: settings.FlyToDurationSeconds ?? null },
         { name: 'panelPosition', value: settings.PanelPosition || null },
-        { name: 'autoPlayFeaturedVideo', value: settings.AutoPlayFeaturedVideo !== undefined ? (settings.AutoPlayFeaturedVideo ? 1 : 0) : null },
-        { name: 'enableVR', value: settings.EnableVR !== undefined ? (settings.EnableVR ? 1 : 0) : null },
-        { name: 'enableFullscreenVideo', value: settings.EnableFullscreenVideo !== undefined ? (settings.EnableFullscreenVideo ? 1 : 0) : null },
+        { name: 'autoPlayFeaturedVideo', value: settings.AutoPlayFeaturedVideo ?? null },
+        { name: 'enableVR', value: settings.EnableVR ?? null },
+        { name: 'enableFullscreenVideo', value: settings.EnableFullscreenVideo ?? null },
       ]
     )
 
@@ -66,20 +68,20 @@ export class VRRepository {
   }
 
   public static async getHotspots(projectId: number): Promise<VRHotspotRow[]> {
-    return query<VRHotspotRow>('SELECT * FROM VRHotspots WHERE ProjectId = @projectId AND IsActive = 1', [
+    return query<VRHotspotRow>('SELECT * FROM "VRHotspots" WHERE "ProjectId" = @projectId AND "IsActive" = TRUE', [
       { name: 'projectId', value: projectId },
     ])
   }
 
   public static async createHotspot(hotspot: Partial<VRHotspotRow>): Promise<VRHotspotRow> {
     const res = await execute(
-      `INSERT INTO VRHotspots (
-        ProjectId, Title, Description, PositionX, PositionY, PositionZ, ActionType, TargetMediaId
+      `INSERT INTO "VRHotspots" (
+        "ProjectId", "Title", "Description", "PositionX", "PositionY", "PositionZ", "ActionType", "TargetMediaId"
       )
-      OUTPUT INSERTED.*
       VALUES (
         @projectId, @title, @description, @positionX, @positionY, @positionZ, @actionType, @targetMediaId
-      )`,
+      )
+      RETURNING *`,
       [
         { name: 'projectId', value: hotspot.ProjectId },
         { name: 'title', value: hotspot.Title },

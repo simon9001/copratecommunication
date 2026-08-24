@@ -12,23 +12,27 @@ export interface CategoryRow {
 
 export class CategoryRepository {
   public static async findAll(): Promise<CategoryRow[]> {
-    return query<CategoryRow>('SELECT * FROM ProjectCategories WHERE IsActive = 1 ORDER BY CategoryName ASC')
+    return query<CategoryRow>('SELECT * FROM "ProjectCategories" WHERE "IsActive" = TRUE ORDER BY "CategoryName" ASC')
   }
 
   public static async findById(categoryId: number): Promise<CategoryRow | null> {
-    return queryOne<CategoryRow>('SELECT * FROM ProjectCategories WHERE CategoryId = @id', [{ name: 'id', value: categoryId }])
+    return queryOne<CategoryRow>('SELECT * FROM "ProjectCategories" WHERE "CategoryId" = @id', [
+      { name: 'id', value: categoryId },
+    ])
   }
 
   public static async create(categoryName: string, description?: string, iconName?: string): Promise<CategoryRow> {
-    const existing = await queryOne('SELECT 1 FROM ProjectCategories WHERE CategoryName = @name', [{ name: 'name', value: categoryName }])
+    const existing = await queryOne('SELECT 1 FROM "ProjectCategories" WHERE "CategoryName" = @name', [
+      { name: 'name', value: categoryName },
+    ])
     if (existing) {
       throw new ConflictError(`Category '${categoryName}' already exists`)
     }
 
     const res = await execute(
-      `INSERT INTO ProjectCategories (CategoryName, Description, IconName)
-       OUTPUT INSERTED.*
-       VALUES (@categoryName, @description, @iconName)`,
+      `INSERT INTO "ProjectCategories" ("CategoryName", "Description", "IconName")
+       VALUES (@categoryName, @description, @iconName)
+       RETURNING *`,
       [
         { name: 'categoryName', value: categoryName },
         { name: 'description', value: description || null },

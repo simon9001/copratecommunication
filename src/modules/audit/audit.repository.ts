@@ -17,7 +17,7 @@ export class AuditRepository {
       const newValStr = newValues ? JSON.stringify(newValues) : null
 
       await execute(
-        `INSERT INTO AuditLogs (UserId, Action, EntityName, EntityId, OldValues, NewValues, IpAddress, UserAgent)
+        `INSERT INTO "AuditLogs" ("UserId", "Action", "EntityName", "EntityId", "OldValues", "NewValues", "IpAddress", "UserAgent")
          VALUES (@userId, @action, @entityName, @entityId, @oldValues, @newValues, @ipAddress, @userAgent)`,
         [
           { name: 'userId', value: userId },
@@ -45,7 +45,7 @@ export class AuditRepository {
   ): Promise<void> {
     try {
       await execute(
-        `INSERT INTO ProjectWorkflow (ProjectId, Action, FromStatus, ToStatus, Comment, PerformedBy)
+        `INSERT INTO "ProjectWorkflow" ("ProjectId", "Action", "FromStatus", "ToStatus", "Comment", "PerformedBy")
          VALUES (@projectId, @action, @fromStatus, @toStatus, @comment, @performedBy)`,
         [
           { name: 'projectId', value: projectId },

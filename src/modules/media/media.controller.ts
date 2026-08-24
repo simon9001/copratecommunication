@@ -69,7 +69,7 @@ export class MediaController {
     return c.json(
       createSuccessResponse(
         result,
-        'Media uploaded to Cloudinary and registered in SQL Server',
+        'Media uploaded to Cloudinary and registered in the database',
         undefined,
         c.get('requestId') as string | undefined
       ),
