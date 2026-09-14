@@ -11,7 +11,7 @@
     "media:backfill": "tsx src/scripts/backfillVideoRenditions.ts",
     "test:query": "tsx src/db/query.test.ts",
     "test:supabase": "tsx src/services/supabase.service.test.ts",
-    "test": "tsx src/db/query.test.ts && tsx src/services/supabase.service.test.ts"
+    "test": "tsx src/db/query.test.ts && tsx src/services/supabase.service.test.ts && tsx src/modules/public/public.sql.test.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.0",

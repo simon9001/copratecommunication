@@ -3,11 +3,12 @@ import { PublicService } from './public.service.js'
 import type { AppEnv } from '../../types/hono.js'
 
 export class PublicController {
-  /** GET /public/map?county=X&status=Y */
+  /** GET /public/map?county=X&status=Y&highlights=true */
   public static getMapProjects = async (c: Context<AppEnv>) => {
     const county = c.req.query('county') || undefined
     const status = c.req.query('status') || undefined
-    const data = await PublicService.getMapProjects(county, status)
+    const highlights = c.req.query('highlights') === 'true'
+    const data = await PublicService.getMapProjects({ county, status, highlights })
     return c.json({ success: true, data })
   }
 

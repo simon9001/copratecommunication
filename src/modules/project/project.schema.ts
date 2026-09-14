@@ -19,6 +19,8 @@ export const createProjectSchema = z.object({
   lengthKm: z.number().positive().optional(),
   isFeatured: z.boolean().default(false),
   isPublished: z.boolean().default(false),
+  isShowHighlight: z.boolean().default(false),
+  showOrder: z.number().int().min(1).optional(),
   categoryIds: z.array(z.number().int()).optional(),
   county: z.string().optional(),
   subCounty: z.string().optional(),

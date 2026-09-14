@@ -1,65 +1,14 @@
-import { query, queryOne, type SqlParam } from '../../db/query.js'
+import { query, queryOne } from '../../db/query.js'
+import { buildMapProjectsQuery, type MapProjectFilters } from './public.sql.js'
 
 export class PublicService {
   /**
-   * All published map projects, with optional county and status filters.
-   * This is the visitor-facing feed that drives the 3D globe.
+   * All published map projects, with optional county, status and
+   * show-highlight filters. This is the visitor-facing feed that drives the globe.
    */
-  public static async getMapProjects(county?: string, status?: string) {
-    const conditions: string[] = [`(p."PublicationStatus" = 'Published' OR p."IsPublished" = TRUE)`]
-    const params: SqlParam[] = []
-
-    if (county && county !== 'All') {
-      conditions.push('LOWER(pl."County") = LOWER(@county)')
-      params.push({ name: 'county', value: county })
-    }
-
-    if (status && status !== 'All') {
-      conditions.push('p."ProjectStatus" = @status')
-      params.push({ name: 'status', value: status })
-    }
-
-    const where = `WHERE ${conditions.join(' AND ')}`
-
-    return query(
-      `SELECT
-        p."ProjectId", p."ProjectCode", p."ProjectName", p."Slug",
-        p."ShortDescription", p."ProjectStatus",
-        p."IsFeatured", p."PublicationStatus", p."IsPublished",
-        p."StartDate", p."ExpectedCompletionDate", p."CompletionDate",
-        p."ProjectCost", p."CurrencyCode", p."LengthKm",
-        COALESCE(pl."LocationId", 1)               AS "LocationId",
-        COALESCE(pl."LocationName", p."ProjectName") AS "LocationName",
-        COALESCE(pl."County", 'Nairobi')           AS "County",
-        COALESCE(pl."SubCounty", '')               AS "SubCounty",
-        pl."Ward",
-        COALESCE(pl."Latitude", -1.286389)         AS "Latitude",
-        COALESCE(pl."Longitude", 36.817222)        AS "Longitude",
-        -- Latest published progress reading
-        (
-          SELECT pu."ProgressPercentage"
-          FROM "ProjectUpdates" pu
-          WHERE pu."ProjectId" = p."ProjectId"
-            AND pu."PublicationStatus" = 'Published'
-          ORDER BY pu."UpdateDate" DESC
-          LIMIT 1
-        ) AS "ProgressPercentage",
-        EXISTS (
-          SELECT 1 FROM "ProjectRoutes" pr WHERE pr."ProjectId" = p."ProjectId"
-        ) AS "HasRoute"
-      FROM "Projects" p
-      LEFT JOIN LATERAL (
-        SELECT l."LocationId", l."LocationName", l."County", l."SubCounty",
-               l."Ward", l."Latitude", l."Longitude"
-        FROM "ProjectLocations" l
-        WHERE l."ProjectId" = p."ProjectId"
-        ORDER BY l."IsPrimaryLocation" DESC, l."LocationId" ASC
-        LIMIT 1
-      ) pl ON TRUE
-      ${where}
-      ORDER BY p."IsFeatured" DESC, p."CreatedAt" DESC`,
-      params
-    )
+  public static async getMapProjects(filters: MapProjectFilters = {}) {
+    const { sql, params } = buildMapProjectsQuery(filters)
+    return query(sql, params)
   }
 
   /**

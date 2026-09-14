@@ -142,6 +142,8 @@ CREATE TABLE "Projects" (
 
   "IsFeatured"             BOOLEAN NOT NULL DEFAULT FALSE,
   "IsPublished"            BOOLEAN NOT NULL DEFAULT FALSE,
+  "IsShowHighlight"        BOOLEAN NOT NULL DEFAULT FALSE,
+  "ShowOrder"              INT,
 
   "CreatedBy"              INT REFERENCES "Users"("UserId") ON DELETE SET NULL,
   "UpdatedBy"              INT REFERENCES "Users"("UserId") ON DELETE SET NULL,

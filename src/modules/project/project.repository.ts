@@ -20,6 +20,8 @@ export interface ProjectRow {
   LengthKm: number | null
   IsFeatured: boolean
   IsPublished: boolean
+  IsShowHighlight: boolean
+  ShowOrder: number | null
   CreatedBy: number | null
   UpdatedBy: number | null
   ApprovedBy: number | null
@@ -169,12 +171,12 @@ export class ProjectRepository {
       `INSERT INTO "Projects" (
         "ProjectCode", "ProjectName", "Slug", "ShortDescription", "FullDescription",
         "ProjectStatus", "PublicationStatus", "StartDate", "ExpectedCompletionDate", "CompletionDate",
-        "ProjectCost", "CurrencyCode", "LengthKm", "IsFeatured", "IsPublished", "CreatedBy"
+        "ProjectCost", "CurrencyCode", "LengthKm", "IsFeatured", "IsPublished", "IsShowHighlight", "ShowOrder", "CreatedBy"
       )
       VALUES (
         @projectCode, @projectName, @slug, @shortDescription, @fullDescription,
         @projectStatus, @publicationStatus, @startDate, @expectedCompletionDate, @completionDate,
-        @projectCost, @currencyCode, @lengthKm, @isFeatured, @isPublished, @createdBy
+        @projectCost, @currencyCode, @lengthKm, @isFeatured, @isPublished, @isShowHighlight, @showOrder, @createdBy
       )
       RETURNING *`,
       [
@@ -193,6 +195,8 @@ export class ProjectRepository {
         { name: 'lengthKm', value: dto.lengthKm ?? null },
         { name: 'isFeatured', value: Boolean(dto.isFeatured) },
         { name: 'isPublished', value: Boolean(dto.isPublished) },
+        { name: 'isShowHighlight', value: Boolean(dto.isShowHighlight) },
+        { name: 'showOrder', value: dto.showOrder ?? null },
         { name: 'createdBy', value: userId },
       ]
     )
@@ -272,6 +276,8 @@ export class ProjectRepository {
            "LengthKm"               = COALESCE(@lengthKm::numeric, "LengthKm"),
            "IsFeatured"             = COALESCE(@isFeatured::boolean, "IsFeatured"),
            "IsPublished"            = COALESCE(@isPublished::boolean, "IsPublished"),
+           "IsShowHighlight"        = COALESCE(@isShowHighlight::boolean, "IsShowHighlight"),
+           "ShowOrder"              = COALESCE(@showOrder::int, "ShowOrder"),
            "UpdatedBy"              = @updatedBy
        WHERE "ProjectId" = @id`,
       [
@@ -290,6 +296,8 @@ export class ProjectRepository {
         { name: 'lengthKm', value: dto.lengthKm ?? null },
         { name: 'isFeatured', value: dto.isFeatured ?? null },
         { name: 'isPublished', value: dto.isPublished ?? null },
+        { name: 'isShowHighlight', value: dto.isShowHighlight ?? null },
+        { name: 'showOrder', value: dto.showOrder ?? null },
         { name: 'updatedBy', value: userId },
       ]
     )
