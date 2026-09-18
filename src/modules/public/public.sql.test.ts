@@ -24,6 +24,8 @@ console.log('buildMapProjectsQuery()\n')
   check('selects featured media', sql.includes('AS "FeaturedMediaUrl"') && sql.includes('AS "FeaturedMediaType"') && sql.includes('AS "FeaturedThumbnailUrl"'))
   check('selects Has360', sql.includes('AS "Has360"') && sql.includes(`'360_VIDEO'`) && sql.includes(`'360_IMAGE'`))
   check('highlight filter absent by default', !sql.includes('p."IsShowHighlight" = TRUE'))
+  check('featured media only surfaces approved/published rows', sql.includes(`m."ApprovalStatus" IN ('Approved', 'Published') OR m."IsPublished" = TRUE`))
+  check('Has360 only counts approved/published 360 media', sql.includes(`m360."ApprovalStatus" IN ('Approved', 'Published') OR m360."IsPublished" = TRUE`))
 }
 
 {

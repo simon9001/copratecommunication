@@ -64,6 +64,7 @@ export function buildMapProjectsQuery(filters: MapProjectFilters = {}): { sql: s
         SELECT 1 FROM "ProjectMedia" m360
         WHERE m360."ProjectId" = p."ProjectId"
           AND m360."MediaType" IN ('360_VIDEO', '360_IMAGE')
+          AND (m360."ApprovalStatus" IN ('Approved', 'Published') OR m360."IsPublished" = TRUE)
       ) AS "Has360"
     FROM "Projects" p
     LEFT JOIN LATERAL (
@@ -78,6 +79,7 @@ export function buildMapProjectsQuery(filters: MapProjectFilters = {}): { sql: s
       SELECT m."MediaUrl", m."MediaType", m."ThumbnailUrl"
       FROM "ProjectMedia" m
       WHERE m."ProjectId" = p."ProjectId"
+        AND (m."ApprovalStatus" IN ('Approved', 'Published') OR m."IsPublished" = TRUE)
       ORDER BY m."IsFeatured" DESC, m."DisplayOrder" ASC, m."CreatedAt" DESC
       LIMIT 1
     ) fm ON TRUE
