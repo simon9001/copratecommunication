@@ -22,8 +22,8 @@ app.use(
   '*',
   cors({
     origin: [
-      'http://localhost:5173',
-      'http://localhost:4173',
+      'https://172.18.48.1:5173',
+      'https://localhost:5173',
       'https://copratecommunicatrion.netlify.app',
       'https://copratecommunication.netlify.app',
     ],
